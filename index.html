@@ -575,7 +575,7 @@ function renderCampaign(camp) {
     : ['input','performance','changes','keywords'];
 
   var tabNames = {
-    input: 'Daily Input', performance: 'Performance', recovery: 'Recovery', checklist: 'This Week',
+    input: 'Daily Input', performance: 'Performance', recovery: 'Recovery', checklist: 'Weekly To-Do',
     keywords: 'Keywords', changes: 'Change Log',
     season: 'Seasonality'
   };
@@ -718,22 +718,67 @@ function buildScreen(id, camp){
 
 // ── DAILY INPUT SCREEN ───────────────────
 function buildInput(camp){
-  return '<div class="alert alert-gold"><strong>Log today\'s numbers from Google Ads.</strong> Every entry builds your performance history. The more you log, the smarter the AI trend analysis gets.</div>'
-  + '<div class="card"><div class="card-head"><h3>Today\'s Numbers</h3><p>Google Ads dashboard → your campaign → summary row at the top.</p></div><div class="card-body">'
-  + '<div class="input-grid" style="margin-bottom:10px;">'
-  + '<div class="mf"><label>Date</label><input type="date" id="di-date" style="font-size:13px;font-family:inherit;font-weight:500;"></div>'
-  + '<div class="mf"><label>Impressions</label><input type="number" id="di-impr" placeholder="e.g. 42" min="0"></div>'
-  + '<div class="mf"><label>Clicks</label><input type="number" id="di-clicks" placeholder="e.g. 8" min="0"></div>'
-  + '<div class="mf"><label>Spend</label><div class="sym" data-s="$"><input type="number" id="di-spend" placeholder="e.g. 145" min="0" step="0.01"></div></div>'
-  + '<div class="mf"><label>Leads (Calendly bookings)</label><input type="number" id="di-leads" placeholder="e.g. 1" min="0"></div>'
-  + '<div class="mf"><label>Consultations showed up</label><input type="number" id="di-consults" placeholder="e.g. 1" min="0"></div>'
-  + '</div>'
-  + '<button class="btn btn-gold" onclick="saveDailyInput()">Save Entry</button>'
-  + '<span class="saved" id="di-saved" style="margin-left:10px;">Saved</span>'
-  + '</div></div>'
-  + '<div id="di-log"></div>';
+  var el = document.createElement('div');
+  var alert = document.createElement('div');
+  alert.className = 'alert alert-gold';
+  alert.innerHTML = '<strong>Log today\'s numbers from Google Ads.</strong> Every entry builds your performance history. The more you log, the smarter the AI analysis gets.';
+  el.appendChild(alert);
+  var card = document.createElement('div');
+  card.className = 'card';
+  var head = document.createElement('div');
+  head.className = 'card-head';
+  head.innerHTML = '<h3>Today\'s Numbers</h3><p>Campaign dashboard \u2192 summary row. Log what you see.</p>';
+  card.appendChild(head);
+  var body = document.createElement('div');
+  body.className = 'card-body';
+  var s1 = document.createElement('div');
+  s1.style.cssText = 'font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:8px;';
+  s1.textContent = 'Core Metrics';
+  body.appendChild(s1);
+  var grid1 = document.createElement('div');
+  grid1.className = 'input-grid';
+  grid1.style.marginBottom = '16px';
+  grid1.innerHTML = '<div class="mf"><label>Date</label><input type="date" id="di-date" style="font-size:13px;font-family:inherit;font-weight:500;"></div>'
+    + '<div class="mf"><label>Impressions</label><input type="number" id="di-impr" placeholder="e.g. 42" min="0"></div>'
+    + '<div class="mf"><label>Clicks</label><input type="number" id="di-clicks" placeholder="e.g. 8" min="0"></div>'
+    + '<div class="mf"><label>Spend</label><div class="sym" data-s="$"><input type="number" id="di-spend" placeholder="e.g. 145" min="0" step="0.01"></div></div>'
+    + '<div class="mf"><label>Leads (Calendly bookings)</label><input type="number" id="di-leads" placeholder="e.g. 1" min="0"></div>';
+  body.appendChild(grid1);
+  var s2 = document.createElement('div');
+  s2.style.cssText = 'font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px;';
+  s2.textContent = 'Quality Metrics';
+  body.appendChild(s2);
+  var qualNote = document.createElement('p');
+  qualNote.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6;';
+  qualNote.innerHTML = 'Avg CPC: summary row. Impr. Share: Campaigns \u2192 Columns \u2192 Competitive metrics. Quality Score: Keywords \u2192 Columns \u2192 Quality Score. G. Convs: summary row Conversions column.';
+  body.appendChild(qualNote);
+  var grid2 = document.createElement('div');
+  grid2.className = 'input-grid';
+  grid2.style.marginBottom = '16px';
+  grid2.innerHTML = '<div class="mf"><label>Avg. CPC</label><div class="sym" data-s="$"><input type="number" id="di-cpc" placeholder="e.g. 14.50" min="0" step="0.01"></div></div>'
+    + '<div class="mf"><label>Search Impression Share</label><div class="sym" data-s="%"><input type="number" id="di-is" placeholder="e.g. 28" min="0" max="100" step="0.1"></div></div>'
+    + '<div class="mf"><label>Quality Score (avg)</label><input type="number" id="di-qs" placeholder="e.g. 7" min="1" max="10" step="0.1"></div>'
+    + '<div class="mf"><label>Google Conversions tracked</label><input type="number" id="di-gconv" placeholder="e.g. 1" min="0" step="0.1"></div>';
+  body.appendChild(grid2);
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;align-items:center;gap:10px;';
+  var saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-gold';
+  saveBtn.textContent = 'Save Entry';
+  saveBtn.addEventListener('click', saveDailyInput);
+  var savedMsg = document.createElement('span');
+  savedMsg.className = 'saved';
+  savedMsg.id = 'di-saved';
+  btnRow.appendChild(saveBtn);
+  btnRow.appendChild(savedMsg);
+  body.appendChild(btnRow);
+  card.appendChild(body);
+  el.appendChild(card);
+  var log = document.createElement('div');
+  log.id = 'di-log';
+  el.appendChild(log);
+  return el.innerHTML;
 }
-
 function initInput(camp){
   var el = document.getElementById("di-date");
   if(!el) return;
@@ -742,29 +787,57 @@ function initInput(camp){
   renderDILog(camp);
 }
 
+
+function loadDIEntry(e){
+  // Pre-fill the form with this entry's data so user can edit and re-save
+  var setVal = function(id, v){ var el = document.getElementById(id); if(el && v != null) el.value = v; else if(el) el.value = ''; };
+  setVal('di-date',   e.date);
+  setVal('di-impr',   e.impr);
+  setVal('di-clicks', e.clicks);
+  setVal('di-spend',  e.spend);
+  setVal('di-leads',  e.leads);
+  setVal('di-cpc',    e.cpc);
+  setVal('di-is',     e.is);
+  setVal('di-qs',     e.qs);
+  setVal('di-gconv',  e.gconv);
+  // Scroll to top of input tab and highlight the form briefly
+  var formCard = document.querySelector('#scr-input .card');
+  if(formCard){
+    formCard.scrollIntoView({behavior:'smooth', block:'start'});
+    formCard.style.transition = 'box-shadow .2s';
+    formCard.style.boxShadow = '0 0 0 2px var(--gold)';
+    setTimeout(function(){ formCard.style.boxShadow = ''; }, 1500);
+  }
+}
+
 function saveDailyInput(){
   var camp = getCamp(activeCampId);
   if(!camp) return;
-  var date = document.getElementById("di-date").value;
-  if(!date){ alert("Please select a date."); return; }
-  var impr    = parseFloat(document.getElementById("di-impr").value)    || 0;
-  var clicks  = parseFloat(document.getElementById("di-clicks").value)  || 0;
-  var spend   = parseFloat(document.getElementById("di-spend").value)   || 0;
-  var leads   = parseFloat(document.getElementById("di-leads").value)   || 0;
-  var consults= parseFloat(document.getElementById("di-consults").value)|| 0;
+  var date    = document.getElementById('di-date').value;
+  if(!date){ alert('Please select a date.'); return; }
+  var impr    = parseFloat(document.getElementById('di-impr').value)    || 0;
+  var clicks  = parseFloat(document.getElementById('di-clicks').value)  || 0;
+  var spend   = parseFloat(document.getElementById('di-spend').value)   || 0;
+  var leads   = parseFloat(document.getElementById('di-leads').value)   || 0;
+  var cpcV    = document.getElementById('di-cpc').value;
+  var isV     = document.getElementById('di-is').value;
+  var qsV     = document.getElementById('di-qs').value;
+  var gcV     = document.getElementById('di-gconv').value;
+  var cpc     = cpcV  !== '' ? parseFloat(cpcV)  : null;
+  var is      = isV   !== '' ? parseFloat(isV)   : null;
+  var qs      = qsV   !== '' ? parseFloat(qsV)   : null;
+  var gconv   = gcV   !== '' ? parseFloat(gcV)   : null;
   if(!camp.perfLog) camp.perfLog = [];
-  // Remove existing entry for same date
   camp.perfLog = camp.perfLog.filter(function(e){ return e.date !== date; });
-  camp.perfLog.push({ date:date, impr:impr, clicks:clicks, spend:spend, leads:leads, consults:consults });
+  camp.perfLog.push({ date:date, impr:impr, clicks:clicks, spend:spend, leads:leads, cpc:cpc, is:is, qs:qs, gconv:gconv });
   camp.perfLog.sort(function(a,b){ return a.date.localeCompare(b.date); });
-  save("campaigns", campaigns);
-  var m = document.getElementById("di-saved");
-  if(m){ m.style.display="inline"; setTimeout(function(){ m.style.display="none"; }, 2000); }
+  save('campaigns', campaigns);
+  var m = document.getElementById('di-saved');
+  if(m){ m.style.display='inline'; setTimeout(function(){ m.style.display='none'; }, 2000); }
   renderDILog(camp);
   renderPerfLog(camp);
   var c = getCamp(activeCampId); if(c) checkWarnings(c);
 }
-
 function removeDIEntry(date){
   var camp = getCamp(activeCampId);
   if(!camp || !camp.perfLog) return;
@@ -779,77 +852,102 @@ function renderDILog(camp){
   if(!el) return;
   el.innerHTML = '';
   if(!camp.perfLog || camp.perfLog.length === 0) return;
-
   var card = document.createElement('div');
   card.className = 'card';
   card.style.marginTop = '12px';
-
   var head = document.createElement('div');
   head.className = 'card-head';
-  head.innerHTML = '<h3>All Entries</h3><p>Most recent first. Click \u00d7 to remove.</p>';
+  head.innerHTML = '<h3>All Entries</h3><p>Most recent first. IS%, QS, G.Conv are color-coded. Click \u00d7 to remove.</p>';
   card.appendChild(head);
-
   var wrap = document.createElement('div');
   wrap.style.overflowX = 'auto';
-
   var table = document.createElement('table');
-  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px;';
-
-  var cols = ['Date','Impr.','Clicks','Spend','Leads','Consults','CPL',''];
-  var aligns = ['left','right','right','right','right','right','right','center'];
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;';
+  var cols   = ['Date','Impr.','Clicks','Spend','Leads','CPL','CPC','IS%','QS','G.Conv',''];
+  var aligns = ['left','right','right','right','right','right','right','right','right','right','center'];
   var thead = document.createElement('thead');
-  var hrow = document.createElement('tr');
+  var hrow  = document.createElement('tr');
   hrow.style.background = 'var(--surface)';
   cols.forEach(function(c, i){
     var th = document.createElement('th');
     th.textContent = c;
-    th.style.cssText = 'text-align:' + aligns[i] + ';padding:8px 12px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);';
+    th.style.cssText = 'text-align:'+aligns[i]+';padding:7px 9px;border-bottom:2px solid var(--border);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);white-space:nowrap;';
     hrow.appendChild(th);
   });
   thead.appendChild(hrow);
   table.appendChild(thead);
-
   var tbody = document.createElement('tbody');
   camp.perfLog.slice().reverse().forEach(function(e){
-    var cpl = e.leads > 0 ? '$' + Math.round(e.spend / e.leads) : '\u2014';
-    var ds  = new Date(e.date + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    var vals = [ds, e.impr, e.clicks, '$'+e.spend.toFixed(0), e.leads, e.consults, cpl];
+    var cpl  = e.leads > 0 ? '$'+Math.round(e.spend/e.leads) : '\u2014';
+    var cpc  = e.cpc   != null ? '$'+e.cpc.toFixed(2) : '\u2014';
+    var isV  = e.is    != null ? e.is+'%' : '\u2014';
+    var qs   = e.qs    != null ? e.qs : '\u2014';
+    var gc   = e.gconv != null ? e.gconv : '\u2014';
+    var ds   = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var vals = [ds, e.impr, e.clicks, '$'+e.spend.toFixed(0), e.leads, cpl, cpc, isV, qs, gc];
     var tr = document.createElement('tr');
     vals.forEach(function(v, i){
       var td = document.createElement('td');
       td.textContent = v;
-      td.style.cssText = 'padding:9px 12px;text-align:' + aligns[i] + ';' + (i > 0 ? 'font-family:monospace;' : 'font-weight:600;');
+      td.style.cssText = 'padding:8px 9px;text-align:'+aligns[i]+';'+(i===0?'font-weight:600;':'font-family:monospace;');
       tr.appendChild(td);
     });
+    if(e.is != null){
+      var isTd = tr.children[7];
+      isTd.style.color = e.is < 20 ? '#dc2626' : e.is < 40 ? '#d97706' : '#15803d';
+    }
+    if(e.qs != null){
+      var qsTd = tr.children[8];
+      qsTd.style.color = e.qs < 5 ? '#dc2626' : e.qs < 7 ? '#d97706' : '#15803d';
+    }
+    if(e.gconv != null && e.leads != null && Math.abs(e.gconv - e.leads) > 1){
+      var gcTd = tr.children[9];
+      gcTd.style.color = '#dc2626';
+      gcTd.title = 'Mismatch with logged leads - check conversion tracking';
+    }
     var tdBtn = document.createElement('td');
-    tdBtn.style.cssText = 'padding:9px 6px;text-align:center;';
-    var btn = document.createElement('button');
-    btn.textContent = '\u00d7';
-    btn.style.cssText = 'font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;';
-    btn.addEventListener('click', (function(date){ return function(){ removeDIEntry(date); }; })(e.date));
-    tdBtn.appendChild(btn);
+    tdBtn.style.cssText = 'padding:8px 6px;text-align:center;white-space:nowrap;';
+    var editBtn = document.createElement('button');
+    editBtn.textContent = '\u270e';
+    editBtn.title = 'Edit this entry';
+    editBtn.style.cssText = 'font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-right:4px;';
+    editBtn.addEventListener('click', (function(entry){ return function(){ loadDIEntry(entry); }; })(e));
+    var delBtn = document.createElement('button');
+    delBtn.textContent = '\u00d7';
+    delBtn.title = 'Remove this entry';
+    delBtn.style.cssText = 'font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;';
+    delBtn.addEventListener('click', (function(d){ return function(){ removeDIEntry(d); }; })(e.date));
+    tdBtn.appendChild(editBtn);
+    tdBtn.appendChild(delBtn);
     tr.appendChild(tdBtn);
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
   card.appendChild(wrap);
+  var legend = document.createElement('div');
+  legend.style.cssText = 'padding:8px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);line-height:1.8;';
+  legend.innerHTML = 'IS%: <span style="color:#dc2626;">red</span>&lt;20 <span style="color:#d97706;">amber</span>&lt;40 <span style="color:#15803d;">green</span>40+&nbsp;&nbsp;|&nbsp;&nbsp;QS: <span style="color:#dc2626;">red</span>&lt;5 <span style="color:#d97706;">amber</span>&lt;7 <span style="color:#15803d;">green</span>7+&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#dc2626;">Red G.Conv</span>=tracking mismatch';
+  card.appendChild(legend);
   el.appendChild(card);
 }
-
 function buildPerformance(camp){
   var el = document.createElement('div');
 
   // Alert
   var alert = document.createElement('div');
   alert.className = 'alert alert-gold';
-  alert.innerHTML = '<strong>Your numbers mean something different at $50K per job.</strong> A $300 cost per lead that would concern an e-commerce store is a grand slam for KCH. Everything here is calibrated to your business.';
   el.appendChild(alert);
 
   // Summary tiles (filled by renderPerfLog)
   var tiles = document.createElement('div');
   tiles.id = 'perf-summary-tiles';
   el.appendChild(tiles);
+
+  // Daily score chart (filled by renderPerfLog)
+  var chartWrap = document.createElement('div');
+  chartWrap.id = 'perf-score-chart';
+  el.appendChild(chartWrap);
 
   // Weekly table (filled by renderPerfLog)
   var weekly = document.createElement('div');
@@ -892,7 +990,7 @@ function buildPerformance(camp){
   bmCard.style.marginTop = '12px';
   var bmHead = document.createElement('div');
   bmHead.className = 'card-head';
-  bmHead.innerHTML = '<h3>KCH Benchmarks</h3><p>Calibrated for a $50K average hardscape project in the KC metro market.</p>';
+  bmHead.innerHTML = '<h3>KCH Benchmarks</h3><p>Calibrated for premium hardscape in the KC metro market.</p>';
   var bmBody = document.createElement('div');
   bmBody.style.overflowX = 'auto';
   bmBody.innerHTML = '<table class="bm"><thead><tr>'
@@ -900,7 +998,7 @@ function buildPerformance(camp){
     + '</tr></thead><tbody>'
     + '<tr><td><strong>Click Rate (CTR)</strong><div class="bm-sub">Hardscape is niche — low volume is normal</div></td><td class="c-bad">&lt;2%</td><td class="c-warn">2–5%</td><td class="c-good">&gt;5%</td></tr>'
     + '<tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr>'
-    + '<tr><td><strong>Cost Per Lead</strong><div class="bm-sub">At $50K/job, you can absorb significant CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr>'
+    + '<tr><td><strong>Cost Per Lead</strong><div class="bm-sub">Premium hardscape margins support a high CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr>'
     + '<tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr>'
     + '<tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:800;text-align:left;">$3,000 per lead</td></tr>'
     + '</tbody></table>';
@@ -911,10 +1009,207 @@ function buildPerformance(camp){
   return el.innerHTML;
 }
 
+
+// ── DAILY SCORE CALCULATOR ───────────────
+function calcDayScore(e, dayNum){
+  // Weights: impression share, CTR, CPL, QS, spend efficiency, lead presence
+  // All adjusted for recovery phase — early days scored more leniently
+  var score = 0;
+  var budget = 145; // fallback
+  var camp = getCamp(activeCampId);
+  if(camp && camp.budget) budget = parseFloat(camp.budget) || 145;
+
+  // Recovery leniency factor: full leniency day 1, none by day 14+
+  var leniency = Math.max(0, 1 - (dayNum - 1) / 13);
+
+  // 1. IMPRESSION SHARE (25pts) — are we showing up?
+  if(e.is != null){
+    var isTarget = 40 + (1 - leniency) * 20; // target rises from 40% to 60% as recovery progresses
+    var isPts = Math.min(25, (e.is / isTarget) * 25);
+    score += isPts;
+  } else {
+    // Estimate from impressions — if we have any impressions at all, partial credit
+    score += e.impr > 0 ? Math.min(15, (e.impr / 30) * 15) : 0;
+  }
+
+  // 2. CTR (20pts) — are clicks meaningful relative to impressions?
+  if(e.impr > 0){
+    var ctr = e.clicks / e.impr * 100;
+    var ctrPts = ctr >= 5 ? 20 : ctr >= 2 ? 10 + (ctr - 2) / 3 * 10 : (ctr / 2) * 10;
+    score += Math.min(20, ctrPts);
+  }
+
+  // 3. SPEND EFFICIENCY (20pts) — spending meaningfully without blowing budget
+  var spendRatio = e.spend / budget;
+  if(spendRatio >= 0.7 && spendRatio <= 1.05) score += 20;       // hitting budget well
+  else if(spendRatio >= 0.5) score += 14;
+  else if(spendRatio >= 0.3) score += 8;
+  else if(spendRatio > 0)    score += 4;
+  // Overspend is neutral not penalized — Google handles caps
+
+  // 4. QUALITY SCORE (15pts)
+  if(e.qs != null){
+    score += e.qs >= 7 ? 15 : e.qs >= 5 ? 8 + (e.qs - 5) * 3.5 : (e.qs / 5) * 8;
+  } else {
+    score += 7; // neutral if not logged
+  }
+
+  // 5. LEAD / CPL (20pts) — bonus for leads, penalty for no leads late in recovery
+  if(e.leads > 0){
+    var cpl = e.spend / e.leads;
+    score += cpl < 150 ? 20 : cpl < 500 ? 14 : cpl < 1500 ? 8 : 4;
+  } else {
+    // No leads is expected early, penalized later
+    var noLeadPenalty = leniency > 0.5 ? 10 : leniency > 0.2 ? 5 : 0;
+    score += noLeadPenalty;
+  }
+
+  return Math.round(Math.min(100, Math.max(0, score)));
+}
+
+function scoreColor(s){
+  if(s >= 75) return '#15803d';
+  if(s >= 50) return '#d97706';
+  return '#dc2626';
+}
+
+function renderScoreChart(camp){
+  var el = document.getElementById('perf-score-chart');
+  if(!el) return;
+  el.innerHTML = '';
+  if(!camp.perfLog || camp.perfLog.length === 0) return;
+
+  var resetDate = camp.resetDate || '2026-03-02';
+
+  // Calculate scores
+  var scored = camp.perfLog.map(function(e){
+    var d0 = new Date(resetDate + 'T12:00:00');
+    var d1 = new Date(e.date    + 'T12:00:00');
+    var dayNum = Math.max(1, Math.round((d1 - d0) / 86400000) + 1);
+    return { date: e.date, dayNum: dayNum, score: calcDayScore(e, dayNum) };
+  });
+
+  var card = document.createElement('div');
+  card.className = 'card';
+  card.style.marginBottom = '12px';
+  var head = document.createElement('div');
+  head.className = 'card-head';
+  head.innerHTML = '<h3>Daily Campaign Score</h3><p>0–100 score for each logged day, calibrated to recovery stage. Early days are graded on a curve.</p>';
+  card.appendChild(head);
+
+  // SVG chart
+  var W = 600, H = 220, PAD = { top:20, right:20, bottom:40, left:40 };
+  var chartW = W - PAD.left - PAD.right;
+  var chartH = H - PAD.top  - PAD.bottom;
+  var n = scored.length;
+
+  var svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.style.cssText = 'width:100%;height:auto;display:block;';
+
+  // Background grid lines
+  [0,25,50,75,100].forEach(function(v){
+    var y = PAD.top + chartH - (v/100)*chartH;
+    var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', PAD.left); line.setAttribute('x2', PAD.left+chartW);
+    line.setAttribute('y1', y); line.setAttribute('y2', y);
+    line.setAttribute('stroke', v===0||v===100 ? '#d1cdc7' : '#ede8e1');
+    line.setAttribute('stroke-width','1');
+    svg.appendChild(line);
+    // Y axis label
+    var txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', PAD.left - 6); txt.setAttribute('y', y + 4);
+    txt.setAttribute('text-anchor','end');
+    txt.setAttribute('font-size','9'); txt.setAttribute('fill','#9b8ea0');
+    txt.textContent = v;
+    svg.appendChild(txt);
+  });
+
+  var barW = n === 1 ? 30 : Math.min(30, (chartW / n) * 0.6);
+  var step = n === 1 ? chartW / 2 : chartW / (n - 1);
+
+  // Bars
+  scored.forEach(function(d, i){
+    var x = PAD.left + (n === 1 ? chartW/2 : i * step);
+    var barH = (d.score / 100) * chartH;
+    var y = PAD.top + chartH - barH;
+    var rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', x - barW/2);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', barW);
+    rect.setAttribute('height', barH);
+    rect.setAttribute('rx','3');
+    rect.setAttribute('fill', scoreColor(d.score));
+    rect.setAttribute('opacity','0.75');
+    svg.appendChild(rect);
+
+    // Score label on bar
+    var lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    lbl.setAttribute('x', x); lbl.setAttribute('y', y - 4);
+    lbl.setAttribute('text-anchor','middle');
+    lbl.setAttribute('font-size','9'); lbl.setAttribute('font-weight','700');
+    lbl.setAttribute('fill', scoreColor(d.score));
+    lbl.textContent = d.score;
+    svg.appendChild(lbl);
+
+    // X axis date label
+    var ds = new Date(d.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var xlbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    xlbl.setAttribute('x', x); xlbl.setAttribute('y', PAD.top + chartH + 16);
+    xlbl.setAttribute('text-anchor','middle');
+    xlbl.setAttribute('font-size','9'); xlbl.setAttribute('fill','#9b8ea0');
+    xlbl.textContent = ds;
+    svg.appendChild(xlbl);
+  });
+
+  // Trend line (if 2+ points)
+  if(n >= 2){
+    var pts = scored.map(function(d, i){
+      var x = PAD.left + (n === 1 ? chartW/2 : i * step);
+      var y = PAD.top + chartH - (d.score/100)*chartH;
+      return x+','+y;
+    }).join(' ');
+    var poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    poly.setAttribute('points', pts);
+    poly.setAttribute('fill','none');
+    poly.setAttribute('stroke','#1c1c1c');
+    poly.setAttribute('stroke-width','2');
+    poly.setAttribute('stroke-linecap','round');
+    poly.setAttribute('stroke-linejoin','round');
+    poly.setAttribute('opacity','0.4');
+    svg.appendChild(poly);
+
+    // Trend line dots
+    scored.forEach(function(d, i){
+      var x = PAD.left + i * step;
+      var y = PAD.top + chartH - (d.score/100)*chartH;
+      var circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx', x); circle.setAttribute('cy', y);
+      circle.setAttribute('r','3');
+      circle.setAttribute('fill','#1c1c1c');
+      circle.setAttribute('opacity','0.5');
+      svg.appendChild(circle);
+    });
+  }
+
+  card.appendChild(svg);
+
+  // Score legend
+  var legend = document.createElement('div');
+  legend.style.cssText = 'padding:8px 16px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;';
+  legend.innerHTML = '<span><span style="color:#dc2626;font-weight:700;">Red</span> = under 50</span>'
+    + '<span><span style="color:#d97706;font-weight:700;">Amber</span> = 50–74</span>'
+    + '<span><span style="color:#15803d;font-weight:700;">Green</span> = 75+</span>'
+    + '<span style="color:var(--muted);">Scores adjust for recovery stage — early days are graded on a curve</span>';
+  card.appendChild(legend);
+  el.appendChild(card);
+}
+
 function renderPerfLog(camp){
   var tilesEl = document.getElementById('perf-summary-tiles');
   var tableEl = document.getElementById('perf-weekly-table');
   if(!tilesEl || !tableEl) return;
+  renderScoreChart(camp);
 
   if(!camp.perfLog || camp.perfLog.length === 0){
     tilesEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);margin-bottom:12px;">No data yet. Log daily entries in the Daily Input tab.</div>';
@@ -923,10 +1218,10 @@ function renderPerfLog(camp){
   }
 
   // Totals
-  var totalSpend=0, totalLeads=0, totalImpr=0, totalClicks=0, totalConsults=0;
+  var totalSpend=0, totalLeads=0, totalImpr=0, totalClicks=0;
   camp.perfLog.forEach(function(e){
     totalSpend+=e.spend; totalLeads+=e.leads; totalImpr+=e.impr;
-    totalClicks+=e.clicks; totalConsults+=e.consults;
+    totalClicks+=e.clicks;
   });
   var avgCPL = totalLeads > 0 ? Math.round(totalSpend/totalLeads) : null;
   var ctr    = totalImpr  > 0 ? (totalClicks/totalImpr*100).toFixed(1) : null;
@@ -934,7 +1229,7 @@ function renderPerfLog(camp){
 
   tilesEl.innerHTML = '<div class="tile-grid" style="margin-bottom:12px;">'
     + '<div class="tile neu"><div class="tile-lbl">Total Spend</div><div class="tile-val">$'+totalSpend.toFixed(0)+'</div><div class="tile-sub">'+camp.perfLog.length+' days logged</div></div>'
-    + '<div class="tile neu"><div class="tile-lbl">Total Leads</div><div class="tile-val">'+totalLeads+'</div><div class="tile-sub">'+totalConsults+' consultations</div></div>'
+    + '<div class="tile neu"><div class="tile-lbl">Total Leads</div><div class="tile-val">'+totalLeads+'</div><div class="tile-sub">Calendly bookings</div></div>'
     + '<div class="tile '+cplCls+'"><div class="tile-lbl">Avg Cost Per Lead</div><div class="tile-val">'+(avgCPL!==null?'$'+avgCPL:'\u2014')+'</div><div class="tile-sub">Max viable: $3,000</div></div>'
     + '<div class="tile neu"><div class="tile-lbl">Avg CTR</div><div class="tile-val">'+(ctr!==null?ctr+'%':'\u2014')+'</div><div class="tile-sub">Target: above 2%</div></div>'
     + '</div>';
@@ -952,7 +1247,7 @@ function renderPerfLog(camp){
     var wk = weekKey(e.date);
     if(!weeks[wk]){ weeks[wk]={spend:0,leads:0,impr:0,clicks:0,consults:0,days:0}; weekOrder.push(wk); }
     weeks[wk].spend+=e.spend; weeks[wk].leads+=e.leads; weeks[wk].impr+=e.impr;
-    weeks[wk].clicks+=e.clicks; weeks[wk].consults+=e.consults; weeks[wk].days++;
+    weeks[wk].clicks+=e.clicks; weeks[wk].days++;
   });
   weekOrder.sort().reverse();
 
@@ -1018,14 +1313,14 @@ async function getPerfAI(){
   var days = getDaysFor(camp.resetDate);
   var logSummary = camp.perfLog.map(function(e){
     var cpl = e.leads > 0 ? "$"+Math.round(e.spend/e.leads) : "no leads";
-    return e.date + ": " + e.impr + " impr, " + e.clicks + " clicks, $" + e.spend.toFixed(0) + " spend, " + e.leads + " leads, " + e.consults + " consults, CPL " + cpl;
+    return e.date + ": " + e.impr + " impr, " + e.clicks + " clicks, $" + e.spend.toFixed(0) + " spend, " + e.leads + " leads, CPL " + cpl;
   }).join("\n");
 
   var totalSpend = 0, totalLeads = 0;
   camp.perfLog.forEach(function(e){ totalSpend += e.spend; totalLeads += e.leads; });
   var avgCPL = totalLeads > 0 ? Math.round(totalSpend/totalLeads) : null;
 
-  var prompt = "You are a Google Ads performance analyst advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Average project value: $50,000. Buyers are high-income homeowners in Leawood, Overland Park, Prairie Village, Johnson County. Daily budget: $" + camp.budget + ". Campaign reset March 2, 2026. Currently Day " + days + " of learning phase recovery.\n\n"
+  var prompt = "You are a Google Ads analyst advising Kansas City Hardscapes, a premium hardscape contractor in KC metro serving high-income homeowners in Johnson County. Daily budget: $" + camp.budget + ". Campaign reset March 2, 2026. Currently Day " + days + " of learning phase recovery.\n\n"
     + "DAILY PERFORMANCE LOG (chronological):\n" + logSummary + "\n\n"
     + "TOTALS: $" + totalSpend.toFixed(0) + " total spend, " + totalLeads + " total leads, avg CPL " + (avgCPL ? "$"+avgCPL : "N/A") + "\n\n"
     + "Write a plain-English performance summary covering:\n"
@@ -1146,7 +1441,7 @@ function buildRecovery(camp){
     ['Check Search Impression Share at Day 5 — not before','Go to Campaigns → add the Search Impression Share column. By day 5, you want to see this trending upward even slightly.','<strong>Green flag:</strong> Any upward movement in impression share by day 5 means the algorithm is starting to re-engage.', false],
     ['At Day 7: Check spend vs. budget ratio','By day 7, you should be spending 40–60% of your daily budget. If you have had at least one Calendly booking convert, the algorithm now has a signal.','<strong>KCH context:</strong> Your conversion is a rare, high-value event. Don\'t panic if the first conversion takes 7–10 days.', false],
     ['At Day 14: Assess and consider reintroducing Target CPA','After 14 days and at least 3–5 conversions, consider adding a Target CPA back. Start at 2–3x your historical CPL.','<strong>Starting point:</strong> If historical CPL was ~$150, set Target CPA at $300–400. Do not go lower — the algorithm needs room.', false],
-    ['Log your first post-reset Calendly booking','When you receive your first Calendly booking attributed to Google Ads after the reset, mark this step complete.','<strong>Perspective:</strong> One booking is potentially $50K in revenue. The reset was a setback measured in days, not dollars.', false]
+    ['Log your first post-reset Calendly booking','When you receive your first Calendly booking attributed to Google Ads after the reset, mark this step complete.','<strong>Perspective:</strong> One genuine booking is significant revenue. The reset was a setback measured in days, not dollars.', false]
   ].map(function(s,i){
     return '<li class="rstep'+(s[3]?' done':'')+'" onclick="togR(this)">'
       +'<div class="rnum"><span>'+( i+1)+'</span></div>'
@@ -1172,7 +1467,6 @@ function buildRecovery(camp){
 // ── HEALTH CHECK ──────────────────────────
 function buildHealth(camp){
   var isSearch = camp.type === 'search';
-  return '<div class="alert alert-gold"><strong>'+(isSearch?'Your numbers mean something different at $50K per job.':'Performance Max and Display require different success metrics.')+'</strong> '+(isSearch?'A $300 cost per lead that would concern an e-commerce store is a grand slam for Kansas City Hardscapes. Everything here is calibrated to your business.':'Focus on lead quality and audience signals rather than raw click volume.')+'</div>'
   +'<div class="card"><div class="card-head"><h3>Weekly Numbers</h3><p>Log in to Google Ads → click your Campaign → pull from the summary table.</p></div>'
   +'<div class="card-body">'
   +'<div class="input-grid" style="margin-bottom:10px;">'
@@ -1194,43 +1488,70 @@ function buildHealth(camp){
   +'<div id="ai-rec-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Analyzing your campaign data...</div>'
   +'<div id="ai-rec-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'
   +'</div></div></div>'
-  +(isSearch?'<div class="card"><div class="card-head"><h3>KCH Benchmarks</h3><p>Calibrated for a $50K average hardscape project in the KC metro market.</p></div><div style="overflow-x:auto;"><table class="bm"><thead><tr><th>Metric</th><th class="c-bad">Concern</th><th class="c-warn">Okay</th><th class="c-good">Strong</th></tr></thead><tbody><tr><td><strong>Click Rate (CTR)</strong><div class="bm-sub">Hardscape is niche — low volume is normal</div></td><td class="c-bad">&lt;2%</td><td class="c-warn">2–5%</td><td class="c-good">&gt;5%</td></tr><tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr><tr><td><strong>Cost Per Lead</strong><div class="bm-sub">At $50K/job, you can absorb significant CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr><tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr><tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:800;text-align:left;">$3,000 per lead</td></tr></tbody></table></div></div>':'');
+  +(isSearch?'<div class="card"><div class="card-head"><h3>KCH Benchmarks</h3><p>Calibrated for premium hardscape in the KC metro market.</p></div><div style="overflow-x:auto;"><table class="bm"><thead><tr><th>Metric</th><th class="c-bad">Concern</th><th class="c-warn">Okay</th><th class="c-good">Strong</th></tr></thead><tbody><tr><td><strong>Click Rate (CTR)</strong><div class="bm-sub">Hardscape is niche — low volume is normal</div></td><td class="c-bad">&lt;2%</td><td class="c-warn">2–5%</td><td class="c-good">&gt;5%</td></tr><tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr><tr><td><strong>Cost Per Lead</strong><div class="bm-sub">Premium hardscape margins support a high CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr><tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr><tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:800;text-align:left;">$3,000 per lead</td></tr></tbody></table></div></div>':'');
 }
 
 // ── CHECKLIST ─────────────────────────────
 function buildChecklist(camp){
-  return '<div class="done-banner" id="done-banner"><strong>Week complete.</strong><p>Reset when you\'re ready to start the next week.</p></div>'
-  +'<div class="card"><div class="prog-wrap"><div class="prog-row"><span class="prog-lbl">Weekly Progress</span><span class="prog-num" id="prog-num">0 / 9</span></div><div class="prog-bg"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div></div></div>'
-  +'<div class="slbl">Priority — Do These First</div>'
-  +'<div class="card"><ul class="cl">'
-  +[
-    ['Pull the Search Terms Report and remove wasteful keywords','Keywords → Search Terms. Look for anything that isn\'t a homeowner ready to spend.','Block immediately: "DIY patio," "paver cost calculator," "cheap pavers," "how to build," "paver rental," "backyard ideas."','Priority'],
-    ['Count qualified Calendly bookings — that\'s the only metric that matters','Clicks and impressions are noise. A Calendly booking with one of your designers is the only number that moves your business forward.','At your price point, 1–2 genuine bookings per week is a strong pipeline. One closed job equals $50K.','Priority'],
-    ['Check your cost per lead against the $3,000 threshold','Enter your numbers in Health Check. At a $50K average and 30% close rate, you can justify spending up to $3,000 per lead and still profit.','Under $500 CPL is exceptional. Under $1,000 is very profitable.','Priority'],
-  ].map(function(t){return '<li onclick="togCL(this)"><div class="chk"></div><div class="ci"><div class="ct">'+t[0]+'</div><div class="cd">'+t[1]+'</div><div class="cnote">'+t[2]+'</div></div><span class="ctag tag-priority">'+t[3]+'</span></li>';}).join('')
-  +'</ul></div>'
-  +'<div class="slbl">Strategic — Weekly Review</div>'
-  +'<div class="card"><ul class="cl">'
-  +[
-    ['Assess lead quality, not just lead count','Were the people who booked consultations actually serious buyers? Tire-kickers are a landing page and ad copy problem.','Your ad copy should pre-qualify before the click. Words like "premium," "custom," and "from $25K" filter out the wrong people.','Strategic'],
-    ['Confirm ads are running when your designers can respond','Reports → Ad Schedule. A buyer who books and doesn\'t receive follow-up within a few hours will move on.','Make sure someone follows up personally before end of business day. The gap between booking and first human contact is where deals are lost.','Strategic'],
-    ['Verify you\'re targeting the right KC neighborhoods','Reports → Geographic. You want clicks from Leawood, Overland Park, Prairie Village, Lenexa — not Lawrence or rural Missouri.','Every click from outside your real buyer profile is wasted spend.','Strategic'],
-  ].map(function(t){return '<li onclick="togCL(this)"><div class="chk"></div><div class="ci"><div class="ct">'+t[0]+'</div><div class="cd">'+t[1]+'</div><div class="cnote">'+t[2]+'</div></div><span class="ctag tag-strategic">'+t[3]+'</span></li>';}).join('')
-  +'</ul></div>'
-  +'<div class="slbl">Growth — When You Have Time</div>'
-  +'<div class="card"><ul class="cl">'
-  +[
-    ['Add or refresh project photos on your landing page','Someone considering a $50K project will want to see your work before they book. No recent, high-quality photos is the single biggest conversion leak.','Outdoor kitchens, fire pit patios, and pool surrounds photograph best. Before-and-after shots convert particularly well.','Growth'],
-    ['Test a headline that includes a project price range','Price anchors repel tire-kickers and attract buyers who already understand what premium hardscape costs.','Try: "Custom Patios Starting at $25K." You want two serious leads — not twenty bad ones.','Growth'],
-    ['Log your full pipeline — leads, consults, proposals, closes','Track the complete funnel, not just ad metrics. This is the data that tells you what your ads are actually worth.','Even one closed job per month from a $1,500 ad spend is a 33x return.','Growth'],
-  ].map(function(t){return '<li onclick="togCL(this)"><div class="chk"></div><div class="ci"><div class="ct">'+t[0]+'</div><div class="cd">'+t[1]+'</div><div class="cnote">'+t[2]+'</div></div><span class="ctag tag-growth">'+t[3]+'</span></li>';}).join('')
-  +'</ul></div>'
-  +'<div class="card"><div class="card-head"><h3>Pipeline Notes</h3><p>Track leads, consultations, proposals, and closes here each week.</p></div>'
-  +'<div class="card-body"><textarea class="notes-area" id="my-notes" placeholder="e.g. 2 Calendly bookings this week. Consultation Tuesday — Johnson County, approx. $60K project."></textarea>'
-  +'<div class="btn-row"><button class="btn btn-gold" onclick="saveNotes()">Save Notes</button><span class="saved" id="saved-msg">Saved</span>'
-  +'<button class="btn btn-ghost" onclick="resetWeek()" style="margin-left:auto;">Reset for New Week</button></div>'
-  +'</div></div>';
+  var el = document.createElement('div');
+
+  // Done banner
+  var banner = document.createElement('div');
+  banner.className = 'done-banner';
+  banner.id = 'done-banner';
+  banner.innerHTML = '<strong>Week complete.</strong><p>Reset when you are ready to start the next week.</p>';
+  el.appendChild(banner);
+
+  // Progress bar
+  var progCard = document.createElement('div');
+  progCard.className = 'card';
+  progCard.innerHTML = '<div class="prog-wrap"><div class="prog-row"><span class="prog-lbl">Weekly Progress</span><span class="prog-num" id="prog-num">0 / 0</span></div><div class="prog-bg"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div></div>';
+  el.appendChild(progCard);
+
+  // AI generate button + status
+  var aiCard = document.createElement('div');
+  aiCard.className = 'card';
+  aiCard.style.marginBottom = '12px';
+  var aiHead = document.createElement('div');
+  aiHead.className = 'card-head';
+  aiHead.innerHTML = '<h3>AI Weekly To-Do List</h3><p>Claude reads your performance data, recovery stage, and change log to generate a personalized task list for this week.</p>';
+  var aiBody = document.createElement('div');
+  aiBody.className = 'card-body';
+  var aiBtn = document.createElement('button');
+  aiBtn.id = 'todo-ai-btn';
+  aiBtn.className = 'btn btn-gold';
+  aiBtn.style.cssText = 'width:100%;justify-content:center;font-size:13px;padding:12px;';
+  aiBtn.textContent = "Generate This Weeks To-Do List";
+  aiBtn.addEventListener('click', generateTodos);
+  var aiLoading = document.createElement('div');
+  aiLoading.id = 'todo-ai-loading';
+  aiLoading.textContent = 'Generating your personalized to-do list...';
+  aiLoading.style.cssText = 'display:none;text-align:center;padding:14px;color:var(--muted);font-size:13px;';
+  aiBody.appendChild(aiBtn);
+  aiBody.appendChild(aiLoading);
+  aiCard.appendChild(aiHead);
+  aiCard.appendChild(aiBody);
+  el.appendChild(aiCard);
+
+  // Todo list container
+  var todoList = document.createElement('div');
+  todoList.id = 'ai-todo-list';
+  el.appendChild(todoList);
+
+  // Pipeline notes
+  var notesCard = document.createElement('div');
+  notesCard.className = 'card';
+  notesCard.style.marginTop = '12px';
+  notesCard.innerHTML = '<div class="card-head"><h3>Pipeline Notes</h3><p>Track leads, consultations, proposals, and closes here each week.</p></div>'
+    + '<div class="card-body"><textarea class="notes-area" id="my-notes" placeholder="e.g. 2 Calendly bookings this week. Consultation Tuesday — Johnson County, approx. $60K project."></textarea>'
+    + '<div class="btn-row"><button class="btn btn-gold" id="save-notes-btn">Save Notes</button><span class="saved" id="saved-msg">Saved</span>'
+    + '<button class="btn btn-ghost" id="reset-week-btn" style="margin-left:auto;">Reset for New Week</button></div>'
+    + '</div>';
+  el.appendChild(notesCard);
+
+  return el.innerHTML;
 }
+
 
 // ── KEYWORDS ──────────────────────────────
 function buildKeywords(camp){
@@ -1574,14 +1895,14 @@ function runH(){
   var vc,vt,vbody,va;
   if(leads===0&&clicks>5){vc='v-bad';vt='Getting clicks but zero leads.';vbody='You\'re spending budget but nobody is booking. This is almost always a landing page problem.';va='Check your landing page on a phone right now. Is there a visible Calendly button above the fold?';}
   else if(leads>0&&consults===0){vc='v-warn';vt='Getting bookings but nobody is showing up.';vbody='Leads are booking through Calendly but not following through. The price expectation may be misaligned.';va='Add "Is your project budget $25,000 or more?" as a required Calendly question.';}
-  else if(cpl&&cpl<150){vc='v-good';vt='Outstanding — your ads are performing at a high level.';vbody='A cost per lead under $150 for a $50K hardscape business is exceptional.';va='Consider increasing your daily budget by 20–30%. You\'re in a highly profitable range.';}
+  else if(cpl&&cpl<150){vc='v-good';vt='Outstanding — your ads are performing at a high level.';vbody='A cost per lead under $150 for a premium hardscape business is exceptional.';va='Consider increasing your daily budget by 20–30%. You\'re in a highly profitable range.';}
   else if(cpl&&cpl<500){vc='v-good';vt='Solid — ads are working well for KCH.';vbody='Your cost per lead is well within profitable range. A $400 CPL gives you ~40x return on a closed job.';va='Focus on lead quality over quantity. Are these buyers in Leawood and Overland Park?';}
   else if(cpl&&cpl>500){vc='v-warn';vt='Cost per lead is elevated — still viable, worth improving.';vbody='At $'+Math.round(cpl)+' per lead, you remain well under the $3,000 maximum viable threshold.';va='Check your keyword match types. Broad match keywords may be pulling in poor-quality traffic.';}
   else{vc='v-good';vt='Keep tracking — more data needed.';vbody='Fill in more fields to get a complete picture.';va='Patience is a strategy. Give it 2–3 weeks of data before drawing conclusions.';}
   var vb=document.getElementById('h-verdict');
   vb.className='verdict show '+vc;
   vb.innerHTML='<h4>'+vt+'</h4><div class="vbody">'+vbody+'<div class="vaction"><div class="vaction-lbl">What To Do</div><p>'+va+'</p></div></div>';
-  var rows=[['Clicks',clicks||'—','Each click is a homeowner who engaged with your ad. 10–25 clicks per week is healthy for KC hardscape.'],['Impressions',impr||'—','How often your ad appeared. Low impressions means budget is too low, off-season, or targeting too narrow.'],['Cost Per Click',cpc?'$'+cpc.toFixed(2):'—','$10–25 per click is normal for high-intent hardscape keywords in KC. Over $25 means Quality Score needs attention.'],['Qualified Leads',leads||'—','Calendly bookings are the only lead metric worth tracking. 2–4 bookings per week is an excellent pipeline.'],['Cost Per Lead',cpl?'$'+Math.round(cpl):'—','Your real efficiency number. Under $500 is excellent. Under $1,500 is still very profitable at $50K average.'],['Consultation Rate',cr?cr.toFixed(0)+'%':'—','Under 50% means leads aren\'t pre-qualified. Add a project minimum question to your Calendly form.']];
+  var rows=[['Clicks',clicks||'—','Each click is a homeowner who engaged with your ad. 10–25 clicks per week is healthy for KC hardscape.'],['Impressions',impr||'—','How often your ad appeared. Low impressions means budget is too low, off-season, or targeting too narrow.'],['Cost Per Click',cpc?'$'+cpc.toFixed(2):'—','$10–25 per click is normal for high-intent hardscape keywords in KC. Over $25 means Quality Score needs attention.'],['Qualified Leads',leads||'—','Calendly bookings are the only lead metric worth tracking. 2–4 bookings per week is an excellent pipeline.'],['Cost Per Lead',cpl?'$'+Math.round(cpl):'—','Your real efficiency number. Under $500 is excellent. Under $1,500 is still very profitable for premium hardscape.'],['Consultation Rate',cr?cr.toFixed(0)+'%':'—','Under 50% means leads aren\'t pre-qualified. Add a project minimum question to your Calendly form.']];
   document.getElementById('h-bt').innerHTML='<thead><tr><th>Metric</th><th>Your Number</th><th>What It Means for KCH</th></tr></thead><tbody>'+rows.map(function(r){return'<tr><td style="font-weight:700;white-space:nowrap;">'+r[0]+'</td><td><div class="bt-metric">'+r[1]+'</div></td><td class="bt-note">'+r[2]+'</td></tr>';}).join('')+'</tbody>';
 
   // Update campaign stats
@@ -1631,38 +1952,170 @@ async function getAIRec(){
 // ══════════════════════════════════════════
 // CHECKLIST
 // ══════════════════════════════════════════
+
+// ── WEEKLY TO-DO ─────────────────────────
+var DEFAULT_TODOS = [
+  {title:"Pull the Search Terms Report and remove wasteful keywords", detail:"Keywords tab in Google Ads. Look for anything that is not a homeowner ready to spend on a premium project.", tag:"Priority"},
+  {title:"Count qualified Calendly bookings this week", detail:"This is the only metric that moves your business. 1-2 genuine bookings per week is a strong pipeline at your price point.", tag:"Priority"},
+  {title:"Check your cost per lead this week", detail:"At a 30% close rate on premium hardscape jobs, you can justify up to $3,000 per lead and still profit. Under $500 is exceptional.", tag:"Priority"},
+  {title:"Assess lead quality, not just lead count", detail:"Were the people who booked consultations actually serious buyers? Ad copy should pre-qualify with words like premium and from $25K.", tag:"Strategic"},
+  {title:"Verify targeting is hitting the right KC neighborhoods", detail:"Reports then Geographic. You want clicks from Leawood, Overland Park, Prairie Village, Lenexa - not Lawrence or rural Missouri.", tag:"Strategic"},
+  {title:"Log your full pipeline - leads, consults, proposals, closes", detail:"Track the complete funnel, not just ad metrics. One closed job per month from a $1,500 ad spend is a 33x return.", tag:"Growth"}
+];
+
+function getChicagoWeekKey(){
+  var now = new Date();
+  var chicago = new Date(now.toLocaleString('en-US', {timeZone: 'America/Chicago'}));
+  var day = chicago.getDay();
+  var monday = new Date(chicago);
+  monday.setDate(chicago.getDate() - (day === 0 ? 6 : day - 1));
+  return monday.toISOString().split('T')[0];
+}
+
 function initChecklist(camp){
-  if(camp&&camp.checklistDone){
+  // Wire buttons
+  var saveBtn  = document.getElementById('save-notes-btn');
+  var resetBtn = document.getElementById('reset-week-btn');
+  if(saveBtn)  saveBtn.addEventListener('click', saveNotes);
+  if(resetBtn) resetBtn.addEventListener('click', resetWeek);
+
+  // Restore notes
+  var notes = document.getElementById('my-notes');
+  if(notes && camp) notes.value = camp.pipelineNotes || '';
+
+  // Check if we need to auto-generate (Monday and not yet generated this week)
+  var weekKey = getChicagoWeekKey();
+  var now = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Chicago'}));
+  var isMonday = now.getDay() === 1;
+
+  if(isMonday && camp.aiTodosWeek !== weekKey && (camp.perfLog && camp.perfLog.length > 0)){
+    generateTodos();
+  } else {
+    renderTodos(camp);
+  }
+}
+
+function renderTodos(camp){
+  var container = document.getElementById('ai-todo-list');
+  if(!container) return;
+  container.innerHTML = '';
+
+  var todos = (camp && camp.aiTodos && camp.aiTodos.length > 0) ? camp.aiTodos : DEFAULT_TODOS;
+  var isAI  = camp && camp.aiTodos && camp.aiTodos.length > 0;
+
+  if(isAI){
+    var weekKey = camp.aiTodosWeek;
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;text-align:right;';
+    label.textContent = 'AI-generated for week of ' + new Date(weekKey + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    container.appendChild(label);
+  } else {
+    var label = document.createElement('div');
+    label.className = 'alert alert-neutral';
+    label.style.marginBottom = '12px';
+    label.innerHTML = '<strong>Showing default tasks.</strong> Log some daily performance data then hit Generate to get a personalized list.';
+    container.appendChild(label);
+  }
+
+  // Group by tag
+  var groups = {};
+  todos.forEach(function(t){
+    if(!groups[t.tag]) groups[t.tag] = [];
+    groups[t.tag].push(t);
+  });
+
+  var tagOrder = ['Priority','Strategic','Growth'];
+  var tagColors = {Priority:'tag-priority', Strategic:'tag-strategic', Growth:'tag-growth'};
+
+  tagOrder.forEach(function(tag){
+    if(!groups[tag] || groups[tag].length === 0) return;
+
+    var lbl = document.createElement('div');
+    lbl.className = 'slbl';
+    lbl.textContent = tag + (tag === 'Priority' ? ' — Do These First' : tag === 'Strategic' ? ' — Weekly Review' : ' — When You Have Time');
+    container.appendChild(lbl);
+
+    var card = document.createElement('div');
+    card.className = 'card';
+    var ul = document.createElement('ul');
+    ul.className = 'cl';
+
+    groups[tag].forEach(function(t, i){
+      var li = document.createElement('li');
+      li.addEventListener('click', function(){ togCL(li); });
+      li.innerHTML = '<div class="chk"></div>'
+        + '<div class="ci"><div class="ct">' + t.title + '</div>'
+        + (t.detail ? '<div class="cd">' + t.detail + '</div>' : '')
+        + '</div>'
+        + '<span class="ctag ' + (tagColors[tag]||'') + '">' + tag + '</span>';
+      ul.appendChild(li);
+    });
+
+    card.appendChild(ul);
+    container.appendChild(card);
+  });
+
+  // Restore checked state
+  if(camp && camp.checklistDone){
+    var items = document.querySelectorAll('#ai-todo-list .cl li');
     camp.checklistDone.forEach(function(idx){
-      var items=document.querySelectorAll('#scr-checklist .cl li');
       if(items[idx]) items[idx].classList.add('done');
     });
-    updateProg();
   }
-  var notes=document.getElementById('my-notes');
-  if(notes&&camp) notes.value=camp.pipelineNotes||'';
-}
-function togCL(el){
-  el.classList.toggle('done');
   updateProg();
-  var camp=getCamp(activeCampId);
-  if(camp){
-    var items=document.querySelectorAll('#scr-checklist .cl li');
-    camp.checklistDone=[];
-    items.forEach(function(li,i){if(li.classList.contains('done'))camp.checklistDone.push(i);});
-    save('campaigns',campaigns);
+}
+
+async function generateTodos(){
+  var camp = getCamp(activeCampId);
+  if(!camp) return;
+  var btn     = document.getElementById('todo-ai-btn');
+  var loading = document.getElementById('todo-ai-loading');
+  if(btn)     btn.style.display = 'none';
+  if(loading) loading.style.display = 'block';
+
+  var days    = getDaysFor(camp.resetDate);
+  var log     = (camp.perfLog || []).slice(-7).map(function(e){
+    var cpl = e.leads > 0 ? '$' + Math.round(e.spend/e.leads) : 'no leads';
+    return e.date + ': ' + e.impr + ' impr, ' + e.clicks + ' clicks, $' + e.spend.toFixed(0) + ' spend, ' + e.leads + ' leads, CPL ' + cpl;
+  }).join('\n') || 'No performance data yet.';
+
+  var recentChanges = (camp.changes || []).slice(0, 3).map(function(c){
+    return c.date + ': [' + c.cat + '] ' + c.what;
+  }).join('\n') || 'None';
+
+  var pendingNegs = (camp.negatives || []).filter(function(n){ return !n.added; }).length;
+  var activeKWs   = (camp.keywords  || []).filter(function(k){ return k.status === 'Active'; }).length;
+
+  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro serving high-income homeowners in Johnson County. $' + camp.budget + '/day budget. Day ' + days + ' of recovery.\n\n'
+    + 'LAST 7 DAYS:\n' + log + '\n\n'
+    + 'RECENT CHANGES:\n' + recentChanges + '\n\n'
+    + 'Active keywords: ' + activeKWs + ' | Pending negatives to add: ' + pendingNegs + '\n\n'
+    + 'Generate a weekly to-do list for this business owner. Return ONLY a JSON array, no other text, no markdown, no backticks. Each item has: title (short action, max 10 words), detail (1-2 sentences of specific context for KCH), tag (exactly one of: Priority, Strategic, Growth). Return 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Make every task specific to where this campaign is right now — not generic Google Ads advice.';
+
+  try {
+    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user', content:prompt}]})
+    });
+    var data = await resp.json();
+    var text = data.content && data.content[0] ? data.content[0].text.trim() : '';
+    // Strip any accidental markdown
+    text = text.replace(/```json|```/g, '').trim();
+    var todos = JSON.parse(text);
+    camp.aiTodos    = todos;
+    camp.aiTodosWeek = getChicagoWeekKey();
+    camp.checklistDone = [];
+    save('campaigns', campaigns);
+    renderTodos(camp);
+  } catch(e) {
+    // Fall back to defaults silently
+    renderTodos(camp);
   }
+  if(btn)     btn.style.display = 'block';
+  if(loading) loading.style.display = 'none';
 }
-function updateProg(){
-  var all=document.querySelectorAll('#scr-checklist .cl li');
-  var done=document.querySelectorAll('#scr-checklist .cl li.done');
-  if(!all.length)return;
-  var pct=Math.round(done.length/all.length*100);
-  var pf=document.getElementById('prog-fill');if(pf)pf.style.width=pct+'%';
-  var pn=document.getElementById('prog-num');if(pn)pn.textContent=done.length+' / '+all.length;
-  var b=document.getElementById('done-banner');
-  if(b){done.length===all.length?b.classList.add('show'):b.classList.remove('show');}
-}
+
 function saveNotes(){
   var camp=getCamp(activeCampId);
   var notes=document.getElementById('my-notes');
@@ -1844,14 +2297,19 @@ async function getChangeAI(){
   var days   = getDaysFor(camp.resetDate);
   var log    = (camp.perfLog || []).slice(-7).map(function(e){
     var cpl = e.leads > 0 ? '$'+Math.round(e.spend/e.leads) : 'no leads';
-    return e.date+': '+e.impr+' impr, '+e.clicks+' clicks, $'+e.spend.toFixed(0)+' spend, '+e.leads+' leads, CPL '+cpl;
+    var xtra = [];
+    if(e.cpc  != null) xtra.push('CPC $'+e.cpc.toFixed(2));
+    if(e.is   != null) xtra.push('IS '+e.is+'%');
+    if(e.qs   != null) xtra.push('QS '+e.qs);
+    if(e.gconv!= null && Math.abs(e.gconv - e.leads) > 0.5) xtra.push('G.Conv '+e.gconv+' vs '+e.leads+' actual');
+    return e.date+': '+e.impr+' impr, '+e.clicks+' clicks, $'+e.spend.toFixed(0)+' spend, '+e.leads+' leads, CPL '+cpl+(xtra.length?', '+xtra.join(', '):'');
   }).join('\n') || 'No performance data logged yet.';
 
   var prevChanges = camp.changes.slice(1, 4).map(function(c){
     return c.date+': ['+c.cat+'] '+c.what;
   }).join('\n') || 'None';
 
-  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $50K average project, $'+camp.budget+'/day budget. Currently Day '+days+' of a learning phase recovery (reset March 2 2026). Buyers are high-income homeowners in Johnson County.\n\n'
+  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro serving high-income homeowners in Johnson County. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
     + 'THE CHANGE JUST LOGGED:\n'
     + 'Date: '+latest.date+'\n'
     + 'Category: '+latest.cat+'\n'
@@ -2043,7 +2501,7 @@ async function getKWRec(){
   var days = getDaysSinceReset(camp);
   var recentChanges = camp.changes ? camp.changes.slice(0,3).map(function(c){return c.date+': '+c.what;}).join('; ') : 'None';
 
-  var prompt = "You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in the KC metro area selling patios, outdoor kitchens, and fire pit spaces with an average project value of $50,000. Their buyers are high-income homeowners in Leawood, Overland Park, Prairie Village, and Johnson County, KS. Conversions come through a Calendly booking page.\n\n"
+  var prompt = "You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. Conversions come through a Calendly booking page.\n\n"
     + "CAMPAIGN: " + camp.name + "\n"
     + "STATUS: Day " + days + " of learning phase recovery (reset March 2, 2026)\n"
     + "DAILY BUDGET: $" + camp.budget + "\n"
@@ -2055,9 +2513,9 @@ async function getKWRec(){
     + "Negative keywords: " + negList + "\n\n"
     + "Based on this full picture, provide a keyword strategy recommendation that covers:\n"
     + "1. KEEP — which active keywords to protect and why\n"
-    + "2. CUT OR PAUSE — any active keywords that are likely wasting budget at the $50K job value level\n"
+    + "2. CUT OR PAUSE — any active keywords that are likely wasting budget for a high-ticket hardscape business\n"
     + "3. ADD — 5-8 specific keywords to test next, with recommended match type and the intent behind each\n"
-    + "4. MATCH TYPE STRATEGY — given the $145/day budget and $50K average job, should KCH be running more Exact or Phrase match right now and why\n\n"
+    + "4. MATCH TYPE STRATEGY — given the $" + camp.budget + "/day budget, should KCH be running more Exact or Phrase match right now and why\n\n"
     + "Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type. Not generic advice — this is a niche, high-ticket local business.";
 
   try {
@@ -2110,10 +2568,10 @@ async function getNegRec(){
   var activeKWs = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Active';}).map(function(k){return '"'+k.text+'" ('+k.match+')';}).join(', ') : 'None logged';
   var days = getDaysSinceReset(camp);
 
-  var prompt = "You are a Google Ads negative keyword specialist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. They sell custom patios, outdoor kitchens, and fire pit spaces. Average project value: $50,000. Buyers are high-income homeowners in Leawood, Overland Park, Prairie Village, Johnson County. $145/day budget. Currently Day " + days + " of a learning phase recovery.\n\n"
+  var prompt = "You are a Google Ads negative keyword specialist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. $" + camp.budget + "/day budget. Day " + days + " of recovery.\n\n"
     + "ACTIVE KEYWORDS: " + activeKWs + "\n\n"
     + "CURRENT NEGATIVE KEYWORD LIST:\n" + currentNegs + "\n\n"
-    + "Your job is to identify the GAPS in their negative keyword coverage. Given their active keywords and the nature of a $50K hardscape business, what search queries are they likely showing up for that will never convert — and are not already blocked?\n\n"
+    + "Your job is to identify the GAPS in their negative keyword coverage. Given their active keywords and premium hardscape positioning, what search queries are they likely showing up for that will never convert — and are not already blocked?\n\n"
     + "Think about:\n"
     + "- DIY and how-to intent queries\n"
     + "- Price-shopping / cheap / budget queries\n"
