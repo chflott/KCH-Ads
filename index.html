@@ -1036,7 +1036,7 @@ async function getPerfAI(){
     + "Write directly to the business owner. Be honest and specific. No generic advice. Keep it under 300 words.";
 
   try {
-    var resp = await fetch("https://api.anthropic.com/v1/messages", {
+    var resp = await fetch("https://kch-ai-proxy.charlie-2bb.workers.dev/", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:800, messages:[{role:"user",content:prompt}]})
@@ -1614,7 +1614,7 @@ async function getAIRec(){
   var pendingNegs=camp&&camp.negatives?camp.negatives.filter(function(n){return !n.added;}).map(function(n){return n.text;}).join(', '):'All added';
   var prompt="You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape company selling backyard living spaces (patios, outdoor kitchens, fire pit areas) with an average project value of $50,000. Leads come in via a Calendly booking page (/thankyou conversion). The business targets high-income homeowners in Leawood, Overland Park, Prairie Village, and Johnson County, KS.\n\nCURRENT CAMPAIGN: "+( camp?camp.name:'KCH Search')+"\nType: "+(camp?typeLabel(camp.type):'Search')+"\n\nCAMPAIGN CONTEXT:\n- Reset on March 2, 2026 after conversion goal change wiped learning data\n- Currently on Day "+days+" of the ~14-day learning phase recovery\n- Bidding strategy: Maximize Conversions (no Target CPA)\n- Recent changes: "+recentChanges+"\n- Active keywords: "+activeKWs+"\n- Negative keywords still pending: "+pendingNegs+"\n\nTHIS WEEK'S PERFORMANCE:\n- Impressions: "+(impr||0)+"\n- Clicks: "+(clicks||0)+"\n- Ad Spend: $"+(spend||0)+"\n- CTR: "+(ctr||'N/A')+"%\n- CPC: $"+(cpc||'N/A')+"\n- Qualified Leads: "+(leads||0)+"\n- Consultations: "+(consults||0)+"\n- CPL: $"+(cpl||'N/A')+"\n- Lead-to-Consultation Rate: "+(cr||'N/A')+"%\n\nProvide a strategic recommendation that is:\n1. Specific to Day "+days+" of the recovery phase\n2. Prioritized — the single most important thing first, then 2-3 supporting actions\n3. Calibrated to $50K average job value\n4. Honest — don't sugarcoat problems but don't catastrophize normal recovery patterns\n5. Written directly to the business owner in plain language\n\nFormat with a clear priority action at the top, then supporting recommendations. Keep it focused and actionable.";
   try{
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    var resp=await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
     var data=await resp.json();
     var text=data.content&&data.content[0]?data.content[0].text:'No response received.';
     var formatted=text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
@@ -1867,7 +1867,7 @@ async function getChangeAI(){
     + 'Be direct. No generic advice.'
 
   try {
-    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:600, messages:[{role:'user',content:prompt}]})
@@ -2061,7 +2061,7 @@ async function getKWRec(){
     + "Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type. Not generic advice — this is a niche, high-ticket local business.";
 
   try {
-    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1200, messages:[{role:'user', content:prompt}]})
@@ -2129,7 +2129,7 @@ async function getNegRec(){
     + "Give specific keyword phrases, not categories. These should be real searches a non-buyer would type that could trigger their hardscape ads.";
 
   try {
-    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user', content:prompt}]})
