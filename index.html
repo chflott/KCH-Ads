@@ -1,0 +1,2185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KCH — Google Ads Command Center</title>
+<style>
+:root{
+  --navy:#0f2557;
+  --navy-lt:#1a3a7a;
+  --stone:#1c1c1c;
+  --stone-mid:#444;
+  --gold:#b8860b;
+  --gold-lt:#fdf8ee;
+  --gold-border:#e2c96e;
+  --green:#155e3e;
+  --green-lt:#f0faf5;
+  --green-border:#6ee7b7;
+  --red:#991b1b;
+  --red-lt:#fff5f5;
+  --red-border:#fca5a5;
+  --amber:#78350f;
+  --amber-lt:#fffbeb;
+  --amber-border:#fcd34d;
+  --blue:#1e3a8a;
+  --blue-lt:#f0f5ff;
+  --blue-border:#bfdbfe;
+  --border:#e0dbd2;
+  --muted:#6b6560;
+  --bg:#f4f2ef;
+  --surface:#faf9f7;
+  --white:#fff;
+}
+html,body{margin:0;padding:0;background:var(--bg);}
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+
+/* ── HEADER ── */
+.hdr{background:var(--navy);padding:20px 24px 18px;}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.hdr-brand{display:flex;align-items:center;gap:12px;}
+.hdr-logo{width:36px;height:36px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;flex-shrink:0;}
+.hdr-title{font-size:18px;font-weight:800;color:#fff;line-height:1.1;}
+.hdr-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:1px;}
+.hdr-back{display:none;align-items:center;gap:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:600;cursor:pointer;padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.15);transition:all .2s;background:none;}
+.hdr-back:hover{background:rgba(255,255,255,.08);color:#fff;}
+.hdr-campaign-name{font-size:13px;font-weight:700;color:var(--gold);display:none;}
+
+/* ── VIEWS ── */
+#view-dashboard{display:block;}
+#view-campaign{display:none;}
+
+/* ── DASHBOARD ── */
+.dash-wrap{padding:24px;}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.dash-header h2{font-size:18px;font-weight:800;color:var(--stone);margin:0;}
+.dash-header p{font-size:12px;color:var(--muted);margin:4px 0 0;}
+.btn{display:inline-flex;align-items:center;padding:9px 20px;border-radius:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all .18s;letter-spacing:.2px;}
+.btn-gold{background:var(--gold);color:#fff;}
+.btn-gold:hover{background:#9a7009;}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);font-size:11px;padding:7px 16px;}
+.btn-ghost:hover{background:var(--surface);color:var(--stone);}
+.btn-navy{background:var(--navy);color:#fff;}
+.btn-navy:hover{background:var(--navy-lt);}
+
+/* ── CAMPAIGN CARDS ── */
+.campaign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:24px;}
+.camp-card{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all .2s;}
+.camp-card:hover{border-color:var(--gold);box-shadow:0 4px 20px rgba(184,134,11,.12);transform:translateY(-1px);}
+.camp-card-top{padding:16px 18px 14px;border-bottom:1px solid #f5f3ef;}
+.camp-card-type{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;}
+.camp-card-name{font-size:15px;font-weight:800;color:var(--stone);margin-bottom:4px;}
+.camp-card-meta{font-size:11px;color:var(--muted);}
+.camp-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+.camp-stat{padding:12px 14px;text-align:center;border-right:1px solid #f5f3ef;}
+.camp-stat:last-child{border-right:none;}
+.camp-stat-val{font-size:16px;font-weight:800;color:var(--stone);line-height:1;}
+.camp-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:4px;}
+.camp-card-foot{padding:12px 18px;display:flex;align-items:center;justify-content:space-between;background:var(--surface);}
+.camp-status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+.camp-status-text{font-size:11px;font-weight:700;}
+.camp-open-btn{font-size:11px;font-weight:700;color:var(--navy);background:none;border:none;cursor:pointer;padding:0;}
+
+/* Status colors */
+.status-learning{background:#f59e0b;} .status-learning-text{color:#92400e;}
+.status-active{background:#22c55e;} .status-active-text{color:#166534;}
+.status-paused{background:#9ca3af;} .status-paused-text{color:#6b7280;}
+.status-issue{background:#ef4444;} .status-issue-text{color:#991b1b;}
+
+/* ── ADD CAMPAIGN CARD ── */
+.add-camp-card{background:var(--white);border:2px dashed var(--border);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;cursor:pointer;transition:all .2s;min-height:160px;}
+.add-camp-card:hover{border-color:var(--gold);background:var(--gold-lt);}
+.add-camp-card div:first-child{font-size:28px;margin-bottom:8px;color:var(--muted);}
+.add-camp-card div:last-child{font-size:12px;font-weight:700;color:var(--muted);}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--white);border-radius:14px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:18px;font-weight:800;margin:0 0 6px;}
+.modal p{font-size:12px;color:var(--muted);margin:0 0 20px;line-height:1.6;}
+.mf label{display:block;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.mf{margin-bottom:14px;}
+.mf input,.mf select,.mf textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;transition:border-color .18s;font-family:inherit;}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:var(--gold);background:var(--white);}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.type-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;}
+.type-opt{border:2px solid var(--border);border-radius:8px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .2s;}
+.type-opt:hover{border-color:var(--gold);}
+.type-opt.selected{border-color:var(--navy);background:var(--blue-lt);}
+.type-opt-icon{font-size:20px;margin-bottom:4px;}
+.type-opt-label{font-size:10px;font-weight:700;color:var(--stone);}
+.type-opt-sub{font-size:9px;color:var(--muted);margin-top:2px;}
+
+/* ── CAMPAIGN WORKSPACE ── */
+.camp-wrap{display:flex;flex-direction:column;height:100%;}
+.tabs{display:flex;background:var(--white);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex:1;min-width:90px;padding:13px 8px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.tab.active{color:var(--stone);border-bottom-color:var(--gold);}
+.tab:hover:not(.active){color:var(--stone);background:#fafaf8;}
+.tab-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ef4444;margin-right:5px;vertical-align:middle;margin-bottom:1px;}
+.wrap{padding:20px 20px 56px;}
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* ── CONTENT ELEMENTS ── */
+.slbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:22px 0 10px;padding-left:2px;}
+.card{background:var(--white);border-radius:10px;border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
+.card-head{padding:15px 18px 11px;border-bottom:1px solid var(--border);}
+.card-head h3{font-size:14px;font-weight:800;margin:0 0 3px;color:var(--stone);}
+.card-head p{font-size:11px;color:var(--muted);margin:0;line-height:1.5;}
+.card-body{padding:15px 18px;}
+.alert{border-radius:8px;padding:12px 15px;font-size:12px;line-height:1.7;margin-bottom:14px;border:1px solid;}
+.alert-gold{background:var(--gold-lt);border-color:var(--gold-border);color:#5c3d00;}
+.alert-red{background:var(--red-lt);border-color:var(--red-border);color:#7f1d1d;}
+.alert-blue{background:var(--blue-lt);border-color:var(--blue-border);color:#1e3a8a;}
+.alert-neutral{background:var(--surface);border-color:var(--border);color:var(--stone);}
+.alert strong{font-weight:800;display:block;margin-bottom:2px;font-size:13px;}
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sym{position:relative;}
+.sym::before{content:attr(data-s);position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--muted);font-family:monospace;pointer-events:none;}
+.sym input{padding-left:24px;}
+.tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.tile{border-radius:9px;padding:13px 15px;border:1px solid var(--border);background:var(--surface);}
+.tile-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:5px;}
+.tile-val{font-size:22px;font-weight:800;line-height:1;color:var(--stone);}
+.tile-sub{font-size:10px;font-weight:600;margin-top:5px;color:var(--muted);}
+.tile.good{background:var(--green-lt);border-color:var(--green-border);}
+.tile.warn{background:var(--amber-lt);border-color:var(--amber-border);}
+.tile.bad{background:var(--red-lt);border-color:var(--red-border);}
+.tile.neu{background:var(--surface);border-color:var(--border);}
+.rstep{display:flex;align-items:flex-start;gap:14px;padding:15px 18px;border-bottom:1px solid #f5f3ef;cursor:pointer;transition:background .15s;}
+.rstep:last-child{border-bottom:none;}
+.rstep:hover{background:var(--surface);}
+.rstep.done{background:var(--green-lt);}
+.rnum{width:28px;height:28px;min-width:28px;border-radius:50%;border:2px solid var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--muted);flex-shrink:0;margin-top:1px;transition:all .2s;}
+.rstep.done .rnum{background:var(--green);border-color:var(--green);color:#fff;}
+.rstep.done .rnum::after{content:'✓';}
+.rstep.done .rnum span{display:none;}
+.ri{flex:1;}
+.rt{font-size:13px;font-weight:700;line-height:1.35;color:var(--stone);}
+.rstep.done .rt{text-decoration:line-through;color:var(--muted);font-weight:400;}
+.rd{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.65;}
+.rnote{font-size:11px;color:var(--amber);background:var(--amber-lt);border-left:3px solid #f59e0b;padding:8px 11px;border-radius:0 6px 6px 0;margin-top:9px;line-height:1.6;}
+.rnote strong{font-weight:700;}
+.dont-row{display:flex;align-items:flex-start;gap:12px;padding:13px 18px;border-bottom:1px solid #f5f3ef;}
+.dont-row:last-child{border-bottom:none;}
+.dont-icon{font-size:12px;font-weight:800;color:var(--red);min-width:16px;margin-top:2px;flex-shrink:0;}
+.dont-text strong{font-size:13px;font-weight:700;display:block;margin-bottom:3px;color:var(--stone);}
+.dont-text p{font-size:12px;color:var(--muted);line-height:1.6;margin:0;}
+.cl{list-style:none;margin:0;padding:0;}
+.cl li{display:flex;align-items:flex-start;gap:12px;padding:13px 18px;border-bottom:1px solid #f5f3ef;cursor:pointer;transition:background .15s;}
+.cl li:last-child{border-bottom:none;}
+.cl li:hover{background:var(--surface);}
+.cl li.done{background:var(--green-lt);}
+.chk{width:22px;height:22px;min-width:22px;border-radius:50%;border:2px solid var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;margin-top:1px;transition:all .2s;flex-shrink:0;}
+.cl li.done .chk{background:var(--green);border-color:var(--green);}
+.cl li.done .chk::after{content:'✓';}
+.ci{flex:1;min-width:0;}
+.ct{font-size:13px;font-weight:700;line-height:1.3;color:var(--stone);}
+.cl li.done .ct{text-decoration:line-through;color:var(--muted);font-weight:400;}
+.cd{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.65;}
+.cnote{font-size:11px;color:var(--amber);background:var(--amber-lt);border-left:3px solid #f59e0b;padding:7px 10px;border-radius:0 6px 6px 0;margin-top:8px;line-height:1.6;}
+.ctag{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;flex-shrink:0;margin-top:2px;letter-spacing:.3px;}
+.tag-priority{background:#fee2e2;color:#9b1c1c;}
+.tag-strategic{background:var(--blue-lt);color:var(--blue);}
+.tag-growth{background:var(--green-lt);color:var(--green);}
+.prog-wrap{padding:15px 18px 13px;}
+.prog-row{display:flex;justify-content:space-between;margin-bottom:8px;}
+.prog-lbl{font-size:12px;font-weight:700;color:var(--stone);}
+.prog-num{font-size:12px;color:var(--muted);font-family:monospace;}
+.prog-bg{background:#ece8e0;border-radius:99px;height:6px;overflow:hidden;}
+.prog-fill{height:6px;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--green));transition:width .4s;}
+.done-banner{display:none;background:var(--green);color:#fff;border-radius:8px;padding:14px 18px;margin-bottom:14px;text-align:center;}
+.done-banner.show{display:block;}
+.done-banner strong{display:block;font-size:14px;margin-bottom:3px;}
+.done-banner p{font-size:12px;opacity:.8;margin:0;}
+.jcalc{background:var(--stone);border-radius:10px;padding:18px 20px;margin-bottom:12px;}
+.jcalc h3{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:0 0 14px;}
+.jrow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+.jrow:last-child{border-bottom:none;padding-top:12px;margin-top:4px;}
+.jlbl{font-size:12px;color:rgba(255,255,255,.55);}
+.jval{font-size:14px;font-weight:800;color:#fff;font-family:monospace;}
+.jval.gold{color:var(--gold);}
+.jval.green{color:#4ade80;}
+.jdiv{height:1px;background:rgba(255,255,255,.1);margin:6px 0;}
+.verdict{display:none;border-radius:10px;padding:18px;border:1px solid;margin-top:0;}
+.verdict.show{display:block;}
+.v-bad{background:var(--red-lt);border-color:var(--red-border);}
+.v-warn{background:var(--amber-lt);border-color:var(--amber-border);}
+.v-good{background:var(--green-lt);border-color:var(--green-border);}
+.verdict h4{font-size:15px;font-weight:800;margin:0 0 8px;color:var(--stone);}
+.verdict .vbody{font-size:12px;line-height:1.75;color:var(--stone);}
+.vaction{margin-top:12px;padding:11px 13px;background:rgba(0,0,0,.05);border-radius:7px;}
+.vaction-lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
+.vaction p{font-size:12px;line-height:1.65;margin:0;color:var(--stone);}
+.bm{width:100%;border-collapse:collapse;font-size:12px;}
+.bm th{text-align:left;padding:9px 12px;background:var(--surface);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:2px solid var(--border);}
+.bm th:not(:first-child){text-align:center;}
+.bm td{padding:11px 12px;border-bottom:1px solid #f5f3ef;vertical-align:top;font-size:12px;}
+.bm tr:last-child td{border-bottom:none;}
+.bm td:not(:first-child){text-align:center;font-weight:700;}
+.c-bad{color:#dc2626;}.c-warn{color:#d97706;}.c-good{color:#16a34a;}
+.bm-sub{font-size:10px;color:var(--muted);font-weight:400;margin-top:2px;}
+.bt{width:100%;border-collapse:collapse;font-size:12px;}
+.bt th{text-align:left;padding:9px 12px;background:var(--surface);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:2px solid var(--border);}
+.bt td{padding:11px 12px;border-bottom:1px solid #f5f3ef;vertical-align:top;}
+.bt tr:last-child td{border-bottom:none;}
+.bt-metric{font-size:16px;font-weight:800;color:var(--stone);}
+.bt-note{font-size:11px;color:var(--muted);line-height:1.6;margin-top:2px;}
+.notes-area{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);resize:vertical;min-height:88px;outline:none;transition:border-color .18s;font-family:inherit;line-height:1.6;}
+.notes-area:focus{border-color:var(--gold);background:var(--white);}
+.btn-row{display:flex;align-items:center;margin-top:12px;gap:10px;}
+.saved{font-size:11px;color:var(--green);display:none;margin-left:4px;font-weight:600;}
+.pstep{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;position:relative;z-index:1;}
+.pdot{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--muted);transition:all .3s;cursor:default;}
+.pdot.done{background:var(--green);border-color:var(--green);color:#fff;}
+.pdot.active{background:var(--gold);border-color:var(--gold);color:#fff;}
+.plbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);text-align:center;line-height:1.3;}
+.plbl.active{color:var(--stone);}
+.signal-row{display:flex;align-items:flex-start;gap:13px;padding:14px 18px;border-bottom:1px solid #f5f3ef;}
+.signal-row:last-child{border-bottom:none;}
+.sdot{width:9px;height:9px;min-width:9px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.dot-r{background:#ef4444;}.dot-a{background:#f59e0b;}.dot-g{background:#22c55e;}
+.signal-row strong{font-size:13px;font-weight:700;display:block;margin-bottom:4px;color:var(--stone);}
+.signal-row p{font-size:12px;color:var(--muted);line-height:1.65;margin:0;}
+.season-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
+.mo{border-radius:7px;padding:10px 5px;text-align:center;}
+.mo-name{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
+.mo-bar{height:4px;border-radius:99px;margin:5px auto;}
+.mo-status{font-size:8px;font-weight:700;line-height:1.3;}
+.mo-hot{background:#fef3c7;color:#92400e;}
+.mo-warm{background:var(--green-lt);color:#166534;}
+.mo-cold{background:var(--surface);color:#9ca3af;}
+.kw-filter-btn{padding:6px 14px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;transition:all .15s;}
+.kw-filter-btn:hover{background:var(--surface);color:var(--stone);}
+.kw-filter-btn.kw-f-active{background:var(--stone);color:#fff;border-color:var(--stone);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-brand">
+      <div class="hdr-logo" id="hdr-logo" style="cursor:pointer;">KCH</div>
+      <div>
+        <div class="hdr-title">Kansas City Hardscapes</div>
+        <div class="hdr-sub">Google Ads Command Center</div>
+      </div>
+    </div>
+    <button class="hdr-back" id="hdr-back">&#8592; All Campaigns</button>
+  </div>
+  <div class="hdr-campaign-name" id="hdr-campaign-name"></div>
+</div>
+
+<!-- HOME PAGE -->
+<div id="page-home">
+  <div class="dash-wrap">
+    <div class="dash-header">
+      <div>
+        <h2>Campaigns</h2>
+        <p>Click a campaign to open its workspace.</p>
+      </div>
+      <button class="btn btn-gold" id="btn-add-campaign">+ New Campaign</button>
+    </div>
+    <div class="campaign-grid" id="campaign-grid"></div>
+  </div>
+</div>
+
+<!-- CAMPAIGN PAGE -->
+<div id="page-campaign" style="display:none;">
+  <div class="tabs" id="camp-tabs"></div>
+  <div class="wrap" id="camp-screens"></div>
+</div>
+
+<!-- ADD CAMPAIGN MODAL -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <h3>Add Campaign</h3>
+    <p>Create a new campaign workspace.</p>
+    <div class="mf">
+      <label>Campaign Name</label>
+      <input type="text" id="new-camp-name" placeholder="e.g. KCH — Retargeting Spring 2026">
+    </div>
+    <div class="mf">
+      <label>Campaign Type</label>
+      <div class="type-grid">
+        <div class="type-opt selected" id="type-search">
+          <div class="type-opt-icon">&#128269;</div>
+          <div class="type-opt-label">Search</div>
+          <div class="type-opt-sub">Keyword-based</div>
+        </div>
+        <div class="type-opt" id="type-pmax">
+          <div class="type-opt-icon">&#9889;</div>
+          <div class="type-opt-label">Perf. Max</div>
+          <div class="type-opt-sub">AI-driven</div>
+        </div>
+        <div class="type-opt" id="type-display">
+          <div class="type-opt-icon">&#128444;</div>
+          <div class="type-opt-label">Display</div>
+          <div class="type-opt-sub">Retargeting</div>
+        </div>
+      </div>
+    </div>
+    <div class="input-grid">
+      <div class="mf">
+        <label>Daily Budget</label>
+        <div class="sym" data-s="$"><input type="number" id="new-camp-budget" placeholder="50"></div>
+      </div>
+      <div class="mf">
+        <label>Status</label>
+        <select id="new-camp-status">
+          <option value="active">Active</option>
+          <option value="learning">Learning Phase</option>
+          <option value="paused">Paused</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+      <button class="btn btn-gold" id="modal-create">Create Campaign</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STORAGE ──────────────────────────────
+function save(key, val) {
+  try { localStorage.setItem('kch_' + key, JSON.stringify(val)); } catch(e) {}
+}
+function load(key, def) {
+  try {
+    var v = localStorage.getItem('kch_' + key);
+    return (v !== null) ? JSON.parse(v) : def;
+  } catch(e) { return def; }
+}
+
+// ── DATA ─────────────────────────────────
+var DEFAULT_CAMPAIGN = {
+  id: 'kch-search-001',
+  name: 'Main Adwords Campaign for KCH',
+  type: 'search',
+  budget: 145,
+  status: 'learning',
+  notes: '',
+  stats: {spend:0, leads:0, cpl:0},
+  resetDate: '2026-03-02',
+  phase: 0,
+  logEntries: [],
+  keywords: [],
+  changes: [{
+    id: 1741000000000,
+    date: '2026-03-02',
+    cat: 'Bidding Strategy',
+    what: 'Switched to Maximize Conversions, removed Target CPA',
+    why: 'Learning phase reset after conversion goal change.',
+    expected: 'Impressions should return within 5-7 days.',
+    outcome: ''
+  }],
+  negatives: [
+    {text:'DIY patio',added:false},{text:'cheap pavers',added:false},
+    {text:'how to build a patio',added:false},{text:'paver cost calculator',added:false},
+    {text:'paver rental',added:false},{text:'backyard ideas',added:false},
+    {text:'DIY landscaping',added:false},{text:'free estimate',added:false},
+    {text:'patio ideas on a budget',added:false},{text:'how much does a patio cost',added:false},
+    {text:'cheap outdoor living',added:false},{text:'DIY fire pit',added:false},
+    {text:'paver installation salary',added:false},{text:'landscaper jobs',added:false},
+    {text:'pavers for sale',added:false},{text:'patio stones home depot',added:false},
+    {text:'concrete patio cost',added:false},{text:'patio design ideas',added:false},
+    {text:'backyard makeover on a budget',added:false}
+  ],
+  checklistDone: [],
+  pipelineNotes: '',
+  kwFilter: 'all'
+};
+
+var campaigns = load('campaigns', null);
+if (!campaigns || campaigns.length === 0) {
+  campaigns = [DEFAULT_CAMPAIGN];
+} else {
+  var hasKCH = campaigns.some(function(c) { return c.id === 'kch-search-001'; });
+  if (!hasKCH) campaigns.unshift(DEFAULT_CAMPAIGN);
+}
+
+var activeCampId = null;
+var newCampType = 'search';
+
+function getCamp(id) {
+  for (var i = 0; i < campaigns.length; i++) {
+    if (campaigns[i].id === id) return campaigns[i];
+  }
+  return null;
+}
+
+// ── NAVIGATION ───────────────────────────
+function showHome() {
+  document.getElementById('page-home').style.display = 'block';
+  document.getElementById('page-campaign').style.display = 'none';
+  document.getElementById('hdr-back').style.display = 'none';
+  document.getElementById('hdr-campaign-name').style.display = 'none';
+  activeCampId = null;
+  renderHome();
+}
+
+function showCampaign(id) {
+  var camp = getCamp(id);
+  if (!camp) { alert('Campaign not found.'); return; }
+  activeCampId = id;
+  document.getElementById('page-home').style.display = 'none';
+  document.getElementById('page-campaign').style.display = 'block';
+  document.getElementById('hdr-back').style.display = 'flex';
+  document.getElementById('hdr-campaign-name').style.display = 'block';
+  document.getElementById('hdr-campaign-name').textContent = camp.name;
+  renderCampaign(camp);
+}
+
+// ── HOME PAGE ────────────────────────────
+function renderHome() {
+  var grid = document.getElementById('campaign-grid');
+  grid.innerHTML = '';
+
+  for (var i = 0; i < campaigns.length; i++) {
+    (function(camp) {
+      var tc = typeColor(camp.type);
+      var days = getDaysFor(camp.resetDate);
+
+      var card = document.createElement('div');
+      card.className = 'camp-card';
+      card.addEventListener('click', function() { showCampaign(camp.id); });
+
+      // Type badge
+      var badge = document.createElement('div');
+      badge.className = 'camp-card-type';
+      badge.style.cssText = 'color:' + tc.color + ';background:' + tc.bg + ';display:inline-block;padding:2px 8px;border-radius:99px;font-size:9px;font-weight:700;letter-spacing:1px;';
+      badge.textContent = typeLabel(camp.type);
+
+      // Name
+      var name = document.createElement('div');
+      name.className = 'camp-card-name';
+      name.style.marginTop = '6px';
+      name.textContent = camp.name;
+
+      // Meta row with budget input
+      var meta = document.createElement('div');
+      meta.className = 'camp-card-meta';
+      meta.style.marginTop = '4px';
+      meta.appendChild(document.createTextNode('Daily budget: $'));
+      var budgetIn = document.createElement('input');
+      budgetIn.type = 'number';
+      budgetIn.value = camp.budget;
+      budgetIn.min = 1;
+      budgetIn.style.cssText = 'width:52px;padding:1px 4px;border:1px solid #ccc;border-radius:4px;font-size:11px;font-weight:700;font-family:monospace;';
+      budgetIn.addEventListener('click', function(e) { e.stopPropagation(); });
+      budgetIn.addEventListener('change', function(e) {
+        e.stopPropagation();
+        var n = parseFloat(budgetIn.value);
+        if (!isNaN(n) && n > 0) { camp.budget = Math.round(n); save('campaigns', campaigns); }
+      });
+      meta.appendChild(budgetIn);
+      meta.appendChild(document.createTextNode(' · Day ' + days + ' of recovery'));
+
+      // Top section
+      var top = document.createElement('div');
+      top.className = 'camp-card-top';
+      top.appendChild(badge);
+      top.appendChild(name);
+      top.appendChild(meta);
+
+      // Stats
+      var statA = camp.stats && camp.stats.spend ? '$' + camp.stats.spend : '—';
+      var statB = camp.stats && camp.stats.leads ? camp.stats.leads : '—';
+      var statC = camp.stats && camp.stats.cpl ? '$' + camp.stats.cpl : '—';
+      var statsEl = document.createElement('div');
+      statsEl.className = 'camp-card-stats';
+      statsEl.innerHTML = '<div class="camp-stat"><div class="camp-stat-val">' + statA + '</div><div class="camp-stat-lbl">Spend</div></div>'
+        + '<div class="camp-stat"><div class="camp-stat-val">' + statB + '</div><div class="camp-stat-lbl">Leads</div></div>'
+        + '<div class="camp-stat"><div class="camp-stat-val">' + statC + '</div><div class="camp-stat-lbl">Cost/Lead</div></div>';
+
+      // Footer
+      var foot = document.createElement('div');
+      foot.className = 'camp-card-foot';
+      var sdot = document.createElement('span');
+      sdot.className = 'camp-status-dot status-' + camp.status;
+      var stxt = document.createElement('span');
+      stxt.className = 'camp-status-text status-' + camp.status + '-text';
+      stxt.textContent = statusLabel(camp.status);
+      var openBtn = document.createElement('span');
+      openBtn.className = 'camp-open-btn';
+      openBtn.textContent = 'Open workspace →';
+      var statusWrap = document.createElement('div');
+      statusWrap.appendChild(sdot);
+      statusWrap.appendChild(stxt);
+
+      // Optimization score input
+      var scoreWrap = document.createElement('div');
+      scoreWrap.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);';
+      scoreWrap.appendChild(document.createTextNode('Opt. score:'));
+
+      // Status light
+      var scoreDot = document.createElement('span');
+      var s = camp.optimizationScore;
+      var dotColor = s === null || s === undefined ? '#d1d5db' : s >= 80 ? '#22c55e' : s >= 60 ? '#f59e0b' : '#ef4444';
+      scoreDot.style.cssText = 'width:9px;height:9px;min-width:9px;border-radius:50%;background:' + dotColor + ';display:inline-block;';
+
+      var scoreIn = document.createElement('input');
+      scoreIn.type = 'number';
+      scoreIn.min = 0;
+      scoreIn.max = 100;
+      scoreIn.step = 0.01;
+      scoreIn.placeholder = '—';
+      scoreIn.value = s !== null && s !== undefined ? s : '';
+      scoreIn.style.cssText = 'width:58px;padding:1px 4px;border:1px solid #ccc;border-radius:4px;font-size:11px;font-weight:700;font-family:monospace;color:var(--stone);';
+      scoreIn.addEventListener('click', function(e) { e.stopPropagation(); });
+      scoreIn.addEventListener('change', function(e) {
+        e.stopPropagation();
+        var n = parseFloat(scoreIn.value);
+        camp.optimizationScore = (!isNaN(n) && n >= 0 && n <= 100) ? n : null;
+        save('campaigns', campaigns);
+        var v = camp.optimizationScore;
+        scoreDot.style.background = v === null ? '#d1d5db' : v >= 80 ? '#22c55e' : v >= 60 ? '#f59e0b' : '#ef4444';
+      });
+
+      scoreWrap.appendChild(scoreDot);
+      scoreWrap.appendChild(scoreIn);
+      scoreWrap.appendChild(document.createTextNode('%'));
+
+      foot.appendChild(statusWrap);
+      foot.appendChild(scoreWrap);
+      foot.appendChild(openBtn);
+
+      card.appendChild(top);
+      card.appendChild(statsEl);
+      card.appendChild(foot);
+      grid.appendChild(card);
+    })(campaigns[i]);
+  }
+
+  // Add campaign card
+  var addCard = document.createElement('div');
+  addCard.className = 'add-camp-card';
+  addCard.innerHTML = '<div style="font-size:32px;color:#aaa;">+</div><div style="font-size:12px;font-weight:700;color:#aaa;">Add Campaign</div>';
+  addCard.addEventListener('click', function() {
+    document.getElementById('add-modal').classList.add('show');
+  });
+  grid.appendChild(addCard);
+}
+
+// ── CAMPAIGN PAGE ────────────────────────
+function renderCampaign(camp) {
+  var tabs = camp.type === 'search'
+    ? ['input','performance','recovery','checklist','keywords','changes','season']
+    : camp.type === 'pmax'
+    ? ['input','performance','changes']
+    : ['input','performance','changes','keywords'];
+
+  var tabNames = {
+    input: 'Daily Input', performance: 'Performance', recovery: 'Recovery', checklist: 'This Week',
+    keywords: 'Keywords', changes: 'Change Log',
+    season: 'Seasonality'
+  };
+
+  // Build tabs
+  var tabBar = document.getElementById('camp-tabs');
+  tabBar.innerHTML = '';
+  var screenWrap = document.getElementById('camp-screens');
+  screenWrap.innerHTML = '';
+
+  for (var i = 0; i < tabs.length; i++) {
+    (function(tabId, idx) {
+      var btn = document.createElement('button');
+      btn.className = 'tab' + (idx === 0 ? ' active' : '');
+      if (tabId === 'recovery') {
+        var dot = document.createElement('span');
+        dot.className = 'tab-dot';
+        btn.appendChild(dot);
+      }
+      btn.appendChild(document.createTextNode(tabNames[tabId]));
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#camp-tabs .tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('#camp-screens .screen').forEach(function(s) { s.classList.remove('active'); });
+        btn.classList.add('active');
+        var scr = document.getElementById('scr-' + tabId);
+        if (scr) scr.classList.add('active');
+      });
+      tabBar.appendChild(btn);
+
+      // Build screen
+      var scr = document.createElement('div');
+      scr.className = 'screen' + (idx === 0 ? ' active' : '');
+      scr.id = 'scr-' + tabId;
+      scr.innerHTML = buildScreen(tabId, camp);
+      screenWrap.appendChild(scr);
+    })(tabs[i], i);
+  }
+
+  // Init dynamic content
+  renderKW(camp);
+  renderCL(camp);
+  renderNG(camp);
+  wireKWButtons(camp);
+  wireCLButtons(camp);
+  initRecovery(camp);
+  setTimeout(function(){ checkWarnings(camp); }, 100);
+  initChecklist(camp);
+  initInput(camp);
+  renderPerfLog(camp);
+}
+
+// ── HELPERS ──────────────────────────────
+function typeLabel(t) {
+  return t === 'search' ? 'Search' : t === 'pmax' ? 'Performance Max' : 'Display';
+}
+function typeColor(t) {
+  return t === 'search' ? {bg:'#eff4ff',color:'#1e3a8a'}
+       : t === 'pmax'   ? {bg:'#fce7f3',color:'#9d174d'}
+                        : {bg:'#f0faf5',color:'#155e3e'};
+}
+function statusLabel(s) {
+  return s === 'learning' ? 'Learning Phase'
+       : s === 'active'   ? 'Active'
+       : s === 'paused'   ? 'Paused' : 'Unknown';
+}
+function getDaysFor(resetDate) {
+  if (!resetDate) return 1;
+  // Use Chicago midnight as the day boundary
+  var now = new Date();
+  var chicagoNow = new Date(now.toLocaleString('en-US', {timeZone: 'America/Chicago'}));
+  var reset = new Date(resetDate + 'T00:00:00');
+  var chicagoReset = new Date(reset.toLocaleString('en-US', {timeZone: 'America/Chicago'}));
+  // Zero out time on both to compare calendar days
+  chicagoNow.setHours(0,0,0,0);
+  chicagoReset.setHours(0,0,0,0);
+  var diff = Math.floor((chicagoNow - chicagoReset) / 86400000) + 1;
+  return diff > 0 ? diff : 1;
+}
+
+// ── ADD CAMPAIGN ─────────────────────────
+document.getElementById('type-search').addEventListener('click', function() { selectType('search'); });
+document.getElementById('type-pmax').addEventListener('click', function() { selectType('pmax'); });
+document.getElementById('type-display').addEventListener('click', function() { selectType('display'); });
+document.getElementById('modal-cancel').addEventListener('click', function() {
+  document.getElementById('add-modal').classList.remove('show');
+});
+document.getElementById('modal-create').addEventListener('click', function() {
+  var name = document.getElementById('new-camp-name').value.trim();
+  if (!name) { alert('Please enter a campaign name.'); return; }
+  var camp = {
+    id: 'camp-' + Date.now(),
+    name: name,
+    type: newCampType,
+    budget: parseFloat(document.getElementById('new-camp-budget').value) || 50,
+    status: document.getElementById('new-camp-status').value,
+    notes: '',
+    stats: {spend:0, leads:0, cpl:0},
+    resetDate: new Date().toISOString().split('T')[0],
+    phase: 0,
+    logEntries: [], keywords: [], changes: [], negatives: [],
+    checklistDone: [], pipelineNotes: '', kwFilter: 'all'
+  };
+  campaigns.push(camp);
+  save('campaigns', campaigns);
+  document.getElementById('add-modal').classList.remove('show');
+  document.getElementById('new-camp-name').value = '';
+  showCampaign(camp.id);
+});
+function selectType(type) {
+  newCampType = type;
+  ['search','pmax','display'].forEach(function(t) {
+    document.getElementById('type-' + t).classList.remove('selected');
+  });
+  document.getElementById('type-' + type).classList.add('selected');
+}
+
+// ── HEADER BUTTONS ───────────────────────
+document.getElementById('hdr-logo').addEventListener('click', showHome);
+document.getElementById('hdr-back').addEventListener('click', showHome);
+document.getElementById('btn-add-campaign').addEventListener('click', function() {
+  document.getElementById('add-modal').classList.add('show');
+});
+
+
+// ── CONTENT FUNCTIONS ────────────────────
+function buildScreen(id, camp){
+  if(id==='input') return buildInput(camp);
+  if(id==='performance') return buildPerformance(camp);
+  if(id==='recovery') return buildRecovery(camp);
+  if(id==='checklist') return buildChecklist(camp);
+  if(id==='keywords') return buildKeywords(camp);
+  if(id==='changes') return buildChanges(camp);
+  if(id==='negatives') return buildNegatives(camp);
+  if(id==='season') return buildSeason();
+  if(id==='signals') return buildSignals();
+  return '';
+}
+
+// ── RECOVERY ──────────────────────────────
+
+// ── DAILY INPUT SCREEN ───────────────────
+function buildInput(camp){
+  return '<div class="alert alert-gold"><strong>Log today\'s numbers from Google Ads.</strong> Every entry builds your performance history. The more you log, the smarter the AI trend analysis gets.</div>'
+  + '<div class="card"><div class="card-head"><h3>Today\'s Numbers</h3><p>Google Ads dashboard → your campaign → summary row at the top.</p></div><div class="card-body">'
+  + '<div class="input-grid" style="margin-bottom:10px;">'
+  + '<div class="mf"><label>Date</label><input type="date" id="di-date" style="font-size:13px;font-family:inherit;font-weight:500;"></div>'
+  + '<div class="mf"><label>Impressions</label><input type="number" id="di-impr" placeholder="e.g. 42" min="0"></div>'
+  + '<div class="mf"><label>Clicks</label><input type="number" id="di-clicks" placeholder="e.g. 8" min="0"></div>'
+  + '<div class="mf"><label>Spend</label><div class="sym" data-s="$"><input type="number" id="di-spend" placeholder="e.g. 145" min="0" step="0.01"></div></div>'
+  + '<div class="mf"><label>Leads (Calendly bookings)</label><input type="number" id="di-leads" placeholder="e.g. 1" min="0"></div>'
+  + '<div class="mf"><label>Consultations showed up</label><input type="number" id="di-consults" placeholder="e.g. 1" min="0"></div>'
+  + '</div>'
+  + '<button class="btn btn-gold" onclick="saveDailyInput()">Save Entry</button>'
+  + '<span class="saved" id="di-saved" style="margin-left:10px;">Saved</span>'
+  + '</div></div>'
+  + '<div id="di-log"></div>';
+}
+
+function initInput(camp){
+  var el = document.getElementById("di-date");
+  if(!el) return;
+  var t = new Date();
+  el.value = t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0");
+  renderDILog(camp);
+}
+
+function saveDailyInput(){
+  var camp = getCamp(activeCampId);
+  if(!camp) return;
+  var date = document.getElementById("di-date").value;
+  if(!date){ alert("Please select a date."); return; }
+  var impr    = parseFloat(document.getElementById("di-impr").value)    || 0;
+  var clicks  = parseFloat(document.getElementById("di-clicks").value)  || 0;
+  var spend   = parseFloat(document.getElementById("di-spend").value)   || 0;
+  var leads   = parseFloat(document.getElementById("di-leads").value)   || 0;
+  var consults= parseFloat(document.getElementById("di-consults").value)|| 0;
+  if(!camp.perfLog) camp.perfLog = [];
+  // Remove existing entry for same date
+  camp.perfLog = camp.perfLog.filter(function(e){ return e.date !== date; });
+  camp.perfLog.push({ date:date, impr:impr, clicks:clicks, spend:spend, leads:leads, consults:consults });
+  camp.perfLog.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  save("campaigns", campaigns);
+  var m = document.getElementById("di-saved");
+  if(m){ m.style.display="inline"; setTimeout(function(){ m.style.display="none"; }, 2000); }
+  renderDILog(camp);
+  renderPerfLog(camp);
+  var c = getCamp(activeCampId); if(c) checkWarnings(c);
+}
+
+function removeDIEntry(date){
+  var camp = getCamp(activeCampId);
+  if(!camp || !camp.perfLog) return;
+  camp.perfLog = camp.perfLog.filter(function(e){ return e.date !== date; });
+  save("campaigns", campaigns);
+  renderDILog(camp);
+  renderPerfLog(camp);
+}
+
+function renderDILog(camp){
+  var el = document.getElementById('di-log');
+  if(!el) return;
+  el.innerHTML = '';
+  if(!camp.perfLog || camp.perfLog.length === 0) return;
+
+  var card = document.createElement('div');
+  card.className = 'card';
+  card.style.marginTop = '12px';
+
+  var head = document.createElement('div');
+  head.className = 'card-head';
+  head.innerHTML = '<h3>All Entries</h3><p>Most recent first. Click \u00d7 to remove.</p>';
+  card.appendChild(head);
+
+  var wrap = document.createElement('div');
+  wrap.style.overflowX = 'auto';
+
+  var table = document.createElement('table');
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px;';
+
+  var cols = ['Date','Impr.','Clicks','Spend','Leads','Consults','CPL',''];
+  var aligns = ['left','right','right','right','right','right','right','center'];
+  var thead = document.createElement('thead');
+  var hrow = document.createElement('tr');
+  hrow.style.background = 'var(--surface)';
+  cols.forEach(function(c, i){
+    var th = document.createElement('th');
+    th.textContent = c;
+    th.style.cssText = 'text-align:' + aligns[i] + ';padding:8px 12px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);';
+    hrow.appendChild(th);
+  });
+  thead.appendChild(hrow);
+  table.appendChild(thead);
+
+  var tbody = document.createElement('tbody');
+  camp.perfLog.slice().reverse().forEach(function(e){
+    var cpl = e.leads > 0 ? '$' + Math.round(e.spend / e.leads) : '\u2014';
+    var ds  = new Date(e.date + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    var vals = [ds, e.impr, e.clicks, '$'+e.spend.toFixed(0), e.leads, e.consults, cpl];
+    var tr = document.createElement('tr');
+    vals.forEach(function(v, i){
+      var td = document.createElement('td');
+      td.textContent = v;
+      td.style.cssText = 'padding:9px 12px;text-align:' + aligns[i] + ';' + (i > 0 ? 'font-family:monospace;' : 'font-weight:600;');
+      tr.appendChild(td);
+    });
+    var tdBtn = document.createElement('td');
+    tdBtn.style.cssText = 'padding:9px 6px;text-align:center;';
+    var btn = document.createElement('button');
+    btn.textContent = '\u00d7';
+    btn.style.cssText = 'font-size:12px;color:var(--muted);background:none;border:none;cursor:pointer;';
+    btn.addEventListener('click', (function(date){ return function(){ removeDIEntry(date); }; })(e.date));
+    tdBtn.appendChild(btn);
+    tr.appendChild(tdBtn);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  card.appendChild(wrap);
+  el.appendChild(card);
+}
+
+function buildPerformance(camp){
+  var el = document.createElement('div');
+
+  // Alert
+  var alert = document.createElement('div');
+  alert.className = 'alert alert-gold';
+  alert.innerHTML = '<strong>Your numbers mean something different at $50K per job.</strong> A $300 cost per lead that would concern an e-commerce store is a grand slam for KCH. Everything here is calibrated to your business.';
+  el.appendChild(alert);
+
+  // Summary tiles (filled by renderPerfLog)
+  var tiles = document.createElement('div');
+  tiles.id = 'perf-summary-tiles';
+  el.appendChild(tiles);
+
+  // Weekly table (filled by renderPerfLog)
+  var weekly = document.createElement('div');
+  weekly.id = 'perf-weekly-table';
+  el.appendChild(weekly);
+
+  // AI Trend Analysis
+  var aiCard = document.createElement('div');
+  aiCard.className = 'card';
+  aiCard.style.marginTop = '12px';
+  var aiHead = document.createElement('div');
+  aiHead.className = 'card-head';
+  aiHead.innerHTML = '<h3>AI Trend Analysis</h3><p>Reads your full performance history and tells you what the trends mean for KCH in plain English.</p>';
+  var aiBody = document.createElement('div');
+  aiBody.className = 'card-body';
+  var aiBtn = document.createElement('button');
+  aiBtn.id = 'perf-ai-btn';
+  aiBtn.className = 'btn btn-gold';
+  aiBtn.textContent = 'Analyze My Campaign Trend';
+  aiBtn.style.cssText = 'width:100%;justify-content:center;font-size:13px;padding:12px;';
+  aiBtn.addEventListener('click', getPerfAI);
+  var aiLoading = document.createElement('div');
+  aiLoading.id = 'perf-ai-loading';
+  aiLoading.textContent = 'Analyzing your performance history...';
+  aiLoading.style.cssText = 'display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;';
+  var aiOutput = document.createElement('div');
+  aiOutput.id = 'perf-ai-output';
+  aiOutput.style.display = 'none';
+  aiOutput.style.marginTop = '14px';
+  aiBody.appendChild(aiBtn);
+  aiBody.appendChild(aiLoading);
+  aiBody.appendChild(aiOutput);
+  aiCard.appendChild(aiHead);
+  aiCard.appendChild(aiBody);
+  el.appendChild(aiCard);
+
+  // KCH Benchmarks
+  var bmCard = document.createElement('div');
+  bmCard.className = 'card';
+  bmCard.style.marginTop = '12px';
+  var bmHead = document.createElement('div');
+  bmHead.className = 'card-head';
+  bmHead.innerHTML = '<h3>KCH Benchmarks</h3><p>Calibrated for a $50K average hardscape project in the KC metro market.</p>';
+  var bmBody = document.createElement('div');
+  bmBody.style.overflowX = 'auto';
+  bmBody.innerHTML = '<table class="bm"><thead><tr>'
+    + '<th>Metric</th><th class="c-bad">Concern</th><th class="c-warn">Okay</th><th class="c-good">Strong</th>'
+    + '</tr></thead><tbody>'
+    + '<tr><td><strong>Click Rate (CTR)</strong><div class="bm-sub">Hardscape is niche — low volume is normal</div></td><td class="c-bad">&lt;2%</td><td class="c-warn">2–5%</td><td class="c-good">&gt;5%</td></tr>'
+    + '<tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr>'
+    + '<tr><td><strong>Cost Per Lead</strong><div class="bm-sub">At $50K/job, you can absorb significant CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr>'
+    + '<tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr>'
+    + '<tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:800;text-align:left;">$3,000 per lead</td></tr>'
+    + '</tbody></table>';
+  bmCard.appendChild(bmHead);
+  bmCard.appendChild(bmBody);
+  el.appendChild(bmCard);
+
+  return el.innerHTML;
+}
+
+function renderPerfLog(camp){
+  var tilesEl = document.getElementById('perf-summary-tiles');
+  var tableEl = document.getElementById('perf-weekly-table');
+  if(!tilesEl || !tableEl) return;
+
+  if(!camp.perfLog || camp.perfLog.length === 0){
+    tilesEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);margin-bottom:12px;">No data yet. Log daily entries in the Daily Input tab.</div>';
+    tableEl.innerHTML = '';
+    return;
+  }
+
+  // Totals
+  var totalSpend=0, totalLeads=0, totalImpr=0, totalClicks=0, totalConsults=0;
+  camp.perfLog.forEach(function(e){
+    totalSpend+=e.spend; totalLeads+=e.leads; totalImpr+=e.impr;
+    totalClicks+=e.clicks; totalConsults+=e.consults;
+  });
+  var avgCPL = totalLeads > 0 ? Math.round(totalSpend/totalLeads) : null;
+  var ctr    = totalImpr  > 0 ? (totalClicks/totalImpr*100).toFixed(1) : null;
+  var cplCls = avgCPL===null ? 'neu' : avgCPL<150 ? 'good' : avgCPL<500 ? 'warn' : 'bad';
+
+  tilesEl.innerHTML = '<div class="tile-grid" style="margin-bottom:12px;">'
+    + '<div class="tile neu"><div class="tile-lbl">Total Spend</div><div class="tile-val">$'+totalSpend.toFixed(0)+'</div><div class="tile-sub">'+camp.perfLog.length+' days logged</div></div>'
+    + '<div class="tile neu"><div class="tile-lbl">Total Leads</div><div class="tile-val">'+totalLeads+'</div><div class="tile-sub">'+totalConsults+' consultations</div></div>'
+    + '<div class="tile '+cplCls+'"><div class="tile-lbl">Avg Cost Per Lead</div><div class="tile-val">'+(avgCPL!==null?'$'+avgCPL:'\u2014')+'</div><div class="tile-sub">Max viable: $3,000</div></div>'
+    + '<div class="tile neu"><div class="tile-lbl">Avg CTR</div><div class="tile-val">'+(ctr!==null?ctr+'%':'\u2014')+'</div><div class="tile-sub">Target: above 2%</div></div>'
+    + '</div>';
+
+  // Group by week (Monday start)
+  function weekKey(dateStr){
+    var d = new Date(dateStr+'T12:00:00');
+    var day = d.getDay();
+    var monday = new Date(d);
+    monday.setDate(d.getDate() - (day===0?6:day-1));
+    return monday.toISOString().split('T')[0];
+  }
+  var weeks = {}, weekOrder = [];
+  camp.perfLog.forEach(function(e){
+    var wk = weekKey(e.date);
+    if(!weeks[wk]){ weeks[wk]={spend:0,leads:0,impr:0,clicks:0,consults:0,days:0}; weekOrder.push(wk); }
+    weeks[wk].spend+=e.spend; weeks[wk].leads+=e.leads; weeks[wk].impr+=e.impr;
+    weeks[wk].clicks+=e.clicks; weeks[wk].consults+=e.consults; weeks[wk].days++;
+  });
+  weekOrder.sort().reverse();
+
+  var wrap = document.createElement('div');
+  wrap.className = 'card';
+  wrap.style.marginBottom = '12px';
+
+  var head = document.createElement('div');
+  head.className = 'card-head';
+  head.innerHTML = '<h3>Weekly Breakdown</h3><p>Each row is one calendar week. Most recent first.</p>';
+  wrap.appendChild(head);
+
+  var scrollWrap = document.createElement('div');
+  scrollWrap.style.overflowX = 'auto';
+
+  var table = document.createElement('table');
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px;';
+
+  var cols   = ['Week','Days','Impr.','Clicks','Spend','Leads','Consults','CPL'];
+  var aligns = ['left','center','right','right','right','right','right','right'];
+  var thead = document.createElement('thead');
+  var hrow  = document.createElement('tr');
+  hrow.style.background = 'var(--surface)';
+  cols.forEach(function(c,i){
+    var th = document.createElement('th');
+    th.textContent = c;
+    th.style.cssText = 'text-align:'+aligns[i]+';padding:8px 12px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);';
+    hrow.appendChild(th);
+  });
+  thead.appendChild(hrow);
+  table.appendChild(thead);
+
+  var tbody = document.createElement('tbody');
+  weekOrder.forEach(function(wk){
+    var w = weeks[wk];
+    var wCPL  = w.leads > 0 ? '$'+Math.round(w.spend/w.leads) : '\u2014';
+    var wDate = new Date(wk+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var vals  = ['Week of '+wDate, w.days+'d', w.impr.toLocaleString(), w.clicks, '$'+w.spend.toFixed(0), w.leads, w.consults, wCPL];
+    var tr = document.createElement('tr');
+    vals.forEach(function(v,i){
+      var td = document.createElement('td');
+      td.textContent = v;
+      td.style.cssText = 'padding:9px 12px;text-align:'+aligns[i]+';'+(i===0?'font-weight:700;':'font-family:monospace;');
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  scrollWrap.appendChild(table);
+  wrap.appendChild(scrollWrap);
+  tableEl.innerHTML = '';
+  tableEl.appendChild(wrap);
+}
+
+async function getPerfAI(){
+  var camp = getCamp(activeCampId);
+  var btn     = document.getElementById("perf-ai-btn");
+  var loading = document.getElementById("perf-ai-loading");
+  var output  = document.getElementById("perf-ai-output");
+  if(!camp.perfLog || camp.perfLog.length === 0){ alert("Log at least a few days of data first."); return; }
+  btn.style.display="none"; loading.style.display="block"; output.style.display="none";
+
+  var days = getDaysFor(camp.resetDate);
+  var logSummary = camp.perfLog.map(function(e){
+    var cpl = e.leads > 0 ? "$"+Math.round(e.spend/e.leads) : "no leads";
+    return e.date + ": " + e.impr + " impr, " + e.clicks + " clicks, $" + e.spend.toFixed(0) + " spend, " + e.leads + " leads, " + e.consults + " consults, CPL " + cpl;
+  }).join("\n");
+
+  var totalSpend = 0, totalLeads = 0;
+  camp.perfLog.forEach(function(e){ totalSpend += e.spend; totalLeads += e.leads; });
+  var avgCPL = totalLeads > 0 ? Math.round(totalSpend/totalLeads) : null;
+
+  var prompt = "You are a Google Ads performance analyst advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Average project value: $50,000. Buyers are high-income homeowners in Leawood, Overland Park, Prairie Village, Johnson County. Daily budget: $" + camp.budget + ". Campaign reset March 2, 2026. Currently Day " + days + " of learning phase recovery.\n\n"
+    + "DAILY PERFORMANCE LOG (chronological):\n" + logSummary + "\n\n"
+    + "TOTALS: $" + totalSpend.toFixed(0) + " total spend, " + totalLeads + " total leads, avg CPL " + (avgCPL ? "$"+avgCPL : "N/A") + "\n\n"
+    + "Write a plain-English performance summary covering:\n"
+    + "1. TREND — Is performance improving, declining, or flat? Be specific about which metrics are moving and in which direction.\n"
+    + "2. RECOVERY PROGRESS — Given this is Day " + days + " of a learning phase reset, is this data consistent with normal recovery or are there warning signs?\n"
+    + "3. WHAT STANDS OUT — One or two specific data points that are worth paying attention to (good or bad).\n"
+    + "4. NEXT WEEK — One concrete thing to watch or do based on what the data is showing.\n\n"
+    + "Write directly to the business owner. Be honest and specific. No generic advice. Keep it under 300 words.";
+
+  try {
+    var resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:800, messages:[{role:"user",content:prompt}]})
+    });
+    var data = await resp.json();
+    var text = data.content && data.content[0] ? data.content[0].text : "No response.";
+    var formatted = text.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\n\n/g,"<br><br>").replace(/\n/g,"<br>");
+    var outDiv = document.createElement("div");
+    outDiv.style.cssText = "padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);font-size:13px;line-height:1.85;color:var(--stone);";
+    outDiv.innerHTML = formatted;
+    var regenRow = document.createElement("div");
+    regenRow.style.cssText = "margin-top:10px;text-align:right;";
+    var regenBtn = document.createElement("button");
+    regenBtn.className = "btn btn-ghost";
+    regenBtn.style.fontSize = "11px";
+    regenBtn.textContent = "Regenerate";
+    regenBtn.addEventListener("click", function(){ btn.style.display="block"; output.style.display="none"; });
+    regenRow.appendChild(regenBtn);
+    output.innerHTML = "";
+    output.appendChild(outDiv);
+    output.appendChild(regenRow);
+    output.style.display = "block";
+  } catch(e) {
+    output.innerHTML = "<div style=\"padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);\">Could not connect. Check your internet and try again.</div>";
+    output.style.display = "block";
+    btn.style.display = "block";
+  }
+  loading.style.display = "none";
+}
+
+function buildRecovery(camp){
+  return ''
+
+  // Phase status card
+  +'<div class="card">'
+  +'<div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);">'
+  +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">'
+  +'<div>'
+  +'<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Campaign Status</div>'
+  +'<div style="font-size:18px;font-weight:800;color:var(--stone);">Day <span id="day-count">1</span> of 14 — <span id="phase-name-main">Reset</span></div>'
+  +'<div id="phase-status-sub" style="font-size:12px;color:var(--muted);margin-top:3px;">Reset on March 2 · Switched to Maximize Conversions · Target CPA removed</div>'
+  +'</div>'
+  +'<div id="phase-badge" style="background:#fee2e2;color:#9b1c1c;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;text-align:center;min-width:100px;">'
+  +'<div style="font-size:18px;font-weight:800;" id="days-left-val">—</div>'
+  +'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-top:2px;">Days to Day 14</div>'
+  +'</div></div></div>'
+
+  +'<div style="padding:16px 20px 18px;">'
+  +'<div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;margin-bottom:6px;">'
+  +'<div style="position:absolute;top:14px;left:20px;right:20px;height:2px;background:var(--border);z-index:0;"></div>'
+  +'<div id="phase-progress-line" style="position:absolute;top:14px;left:20px;height:2px;background:var(--gold);z-index:1;transition:width .4s;width:0%;"></div>'
+  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot active" id="pd0">1</div><div class="plbl active" id="pl0">Reset</div></div>'
+  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd1">2</div><div class="plbl" id="pl1">Warming<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 3–5</div></div></div>'
+  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd2">3</div><div class="plbl" id="pl2">Learning<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 5–10</div></div></div>'
+  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd3">4</div><div class="plbl" id="pl3">Stabilizing<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 10–14</div></div></div>'
+  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd4">5</div><div class="plbl" id="pl4">Recovered<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 14+</div></div></div>'
+  +'</div>'
+  +'<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">'
+  +'<button class="btn btn-gold" onclick="advPhase()">Mark Next Phase Complete</button>'
+  +'<button class="btn btn-ghost" onclick="resetPhase()">Reset Phase</button>'
+  +'</div></div></div>'
+
+  // Daily log
+  +'<div class="card"><div class="card-head"><h3>Daily Recovery Log</h3><p>Enter each day\'s numbers from Google Ads. Reset date is pre-filled to March 2.</p></div>'
+  +'<div class="card-body">'
+  +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;">'
+  +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px;">Log Today\'s Numbers</div>'
+  +'<div class="input-grid" style="margin-bottom:10px;">'
+  +'<div class="mf"><label>Date</label><input type="date" id="log-date" style="font-size:13px;font-weight:500;font-family:inherit;"></div>'
+  +'<div class="mf"><label>Impressions</label><input type="number" id="log-impr" placeholder="e.g. 12" min="0"></div>'
+  +'<div class="mf"><label>Clicks</label><input type="number" id="log-clicks" placeholder="e.g. 2" min="0"></div>'
+  +'<div class="mf"><label>Spend</label><div class="sym" data-s="$"><input type="number" id="log-spend" placeholder="e.g. 18" min="0" step="0.01"></div></div>'
+  +'<div class="mf"><label>Conversions</label><input type="number" id="log-conv" placeholder="e.g. 0" min="0"></div>'
+  +'<div class="mf" style="display:flex;align-items:flex-end;"><button class="btn btn-gold" style="width:100%;justify-content:center;" onclick="addLogEntry()">Add Entry</button></div>'
+  +'</div>'
+  +'<div id="log-msg" style="font-size:11px;color:var(--green);font-weight:600;display:none;">Entry saved.</div>'
+  +'</div>'
+  +'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;" id="log-table">'
+  +'<thead><tr style="background:var(--surface);">'
+  +'<th style="text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Date</th>'
+  +'<th style="text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Day</th>'
+  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Impr.</th>'
+  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Clicks</th>'
+  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Spend</th>'
+  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Conv.</th>'
+  +'<th style="text-align:center;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Signal</th>'
+  +'<th style="padding:8px 6px;border-bottom:2px solid var(--border);"></th>'
+  +'</tr></thead>'
+  +'<tbody id="log-tbody"><tr><td colspan="8" style="padding:20px 10px;text-align:center;color:var(--muted);font-size:12px;font-style:italic;">No entries yet.</td></tr></tbody>'
+  +'</table></div>'
+  +'<div id="log-totals" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">'
+  +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Running Totals Since Reset</div>'
+  +'<div class="tile-grid">'
+  +'<div class="tile neu"><div class="tile-lbl">Total Spend</div><div class="tile-val" id="tot-spend">—</div><div class="tile-sub">Across all logged days</div></div>'
+  +'<div class="tile neu" id="tot-conv-tile"><div class="tile-lbl">Total Conversions</div><div class="tile-val" id="tot-conv">—</div><div class="tile-sub">Need 5 before adding Target CPA</div></div>'
+  +'<div class="tile neu" id="tot-impr-tile"><div class="tile-lbl">Avg. Daily Impressions</div><div class="tile-val" id="tot-impr">—</div><div class="tile-sub">Target: 30–50 / day</div></div>'
+  +'<div class="tile neu"><div class="tile-lbl">Cost Per Conversion</div><div class="tile-val" id="tot-cpl">—</div><div class="tile-sub">Historical CPL reference</div></div>'
+  +'</div></div></div></div>'
+
+  // Action plan
+  +'<div class="slbl">Recovery Action Plan — In Order</div>'
+  +'<div class="card"><ul style="list-style:none;margin:0;padding:0;" id="rstep-list">'
+  +[
+    ['Switch to Maximize Conversions and remove Target CPA','Completed March 2. This was the correct move — Maximize Conversions lets Google explore broadly while it relearns without the constraint of a CPA target that is no longer calibrated.','<strong>Done.</strong> Move to step 2.', true],
+    ['Confirm your /thankyou conversion is firing correctly','Go to Google Ads → Tools → Conversions → click your /thankyou page conversion. Status should show "Recording conversions." If no recent activity despite Calendly bookings, the tag may be broken.','<strong>How to verify:</strong> Book a test Calendly appointment yourself and check within 24 hours whether a conversion appears.', false],
+    ['Do not touch the campaign for at least 7 days','Every change resets or extends the learning phase. No bid adjustments, no budget changes, no ad edits, no keyword changes.','<strong>What to expect:</strong> Under 20 impressions per day for days 1–5 is completely normal. The urge to change something will be strong. Don\'t.', false],
+    ['Check Search Impression Share at Day 5 — not before','Go to Campaigns → add the Search Impression Share column. By day 5, you want to see this trending upward even slightly.','<strong>Green flag:</strong> Any upward movement in impression share by day 5 means the algorithm is starting to re-engage.', false],
+    ['At Day 7: Check spend vs. budget ratio','By day 7, you should be spending 40–60% of your daily budget. If you have had at least one Calendly booking convert, the algorithm now has a signal.','<strong>KCH context:</strong> Your conversion is a rare, high-value event. Don\'t panic if the first conversion takes 7–10 days.', false],
+    ['At Day 14: Assess and consider reintroducing Target CPA','After 14 days and at least 3–5 conversions, consider adding a Target CPA back. Start at 2–3x your historical CPL.','<strong>Starting point:</strong> If historical CPL was ~$150, set Target CPA at $300–400. Do not go lower — the algorithm needs room.', false],
+    ['Log your first post-reset Calendly booking','When you receive your first Calendly booking attributed to Google Ads after the reset, mark this step complete.','<strong>Perspective:</strong> One booking is potentially $50K in revenue. The reset was a setback measured in days, not dollars.', false]
+  ].map(function(s,i){
+    return '<li class="rstep'+(s[3]?' done':'')+'" onclick="togR(this)">'
+      +'<div class="rnum"><span>'+( i+1)+'</span></div>'
+      +'<div class="ri"><div class="rt">'+s[0]+'</div><div class="rd">'+s[1]+'</div>'
+      +'<div class="rnote">'+s[2]+'</div></div></li>';
+  }).join('')
+  +'</ul></div>'
+
+  // Don't do list
+  +'<div class="card"><div class="card-head"><h3>What Not To Do During Recovery</h3><p>These mistakes significantly extend the learning phase.</p></div><div>'
+  +[
+    ['Change your daily budget','Even an increase can re-trigger the learning phase. Wait until "Learning" clears from your campaign status column.'],
+    ['Add or remove keywords','Any significant keyword change extends learning. Keep your list untouched for the full 14 days.'],
+    ['Switch bidding strategies again','You\'ve already switched twice. A third switch would be severely damaging. Stay on Maximize Conversions.'],
+    ['Add a Target CPA too soon','Wait for at least 5 conversions over 14+ days before adding a Target CPA.'],
+  ].map(function(d){
+    return '<div class="dont-row"><div class="dont-icon">&#10005;</div><div class="dont-text"><strong>'+d[0]+'</strong><p>'+d[1]+'</p></div></div>';
+  }).join('')
+  +'<div class="dont-row" style="border-bottom:none;"><div class="dont-icon" style="color:#d97706;">!</div><div class="dont-text"><strong>Judge performance by impressions in days 1–7</strong><p>Impressions are erratic while the algorithm tests different auction strategies. Conversions are the only signal that matters during this window.</p></div></div>'
+  +'</div></div>';
+}
+
+// ── HEALTH CHECK ──────────────────────────
+function buildHealth(camp){
+  var isSearch = camp.type === 'search';
+  return '<div class="alert alert-gold"><strong>'+(isSearch?'Your numbers mean something different at $50K per job.':'Performance Max and Display require different success metrics.')+'</strong> '+(isSearch?'A $300 cost per lead that would concern an e-commerce store is a grand slam for Kansas City Hardscapes. Everything here is calibrated to your business.':'Focus on lead quality and audience signals rather than raw click volume.')+'</div>'
+  +'<div class="card"><div class="card-head"><h3>Weekly Numbers</h3><p>Log in to Google Ads → click your Campaign → pull from the summary table.</p></div>'
+  +'<div class="card-body">'
+  +'<div class="input-grid" style="margin-bottom:10px;">'
+  +'<div class="mf"><label>Clicks</label><input type="number" id="h-clicks" placeholder="e.g. 18" min="0" oninput="runH()"></div>'
+  +'<div class="mf"><label>Impressions</label><input type="number" id="h-impr" placeholder="e.g. 420" min="0" oninput="runH()"></div>'
+  +'<div class="mf"><label>Ad Spend</label><div class="sym" data-s="$"><input type="number" id="h-spend" placeholder="e.g. 280" min="0" oninput="runH()"></div></div>'
+  +'<div class="mf"><label>Qualified Leads</label><input type="number" id="h-leads" placeholder="e.g. 2" min="0" oninput="runH()"></div>'
+  +'</div>'
+  +(isSearch?'<div class="mf"><label>Leads That Booked a Consultation</label><input type="number" id="h-consults" placeholder="e.g. 1" min="0" oninput="runH()"></div>':'')
+  +'</div></div>'
+  +'<div id="h-results" style="display:none;">'
+  +'<div class="tile-grid" id="h-tiles"></div>'
+  +'<div class="jcalc" id="h-jcalc"></div>'
+  +'<div class="verdict" id="h-verdict"></div>'
+  +'<div class="card" style="margin-top:12px;"><div class="card-head"><h3>Metric Breakdown</h3><p>What each number means for KCH.</p></div><div style="overflow-x:auto;"><table class="bt" id="h-bt"></table></div></div>'
+  +'<div class="card" style="margin-top:12px;"><div class="card-head"><h3>AI Strategic Recommendation</h3><p>Get a personalized action plan based on your numbers, calibrated to Kansas City Hardscapes.</p></div>'
+  +'<div class="card-body">'
+  +'<button class="btn btn-gold" id="ai-rec-btn" onclick="getAIRec()" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Generate Recommendation for This Week</button>'
+  +'<div id="ai-rec-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Analyzing your campaign data...</div>'
+  +'<div id="ai-rec-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'
+  +'</div></div></div>'
+  +(isSearch?'<div class="card"><div class="card-head"><h3>KCH Benchmarks</h3><p>Calibrated for a $50K average hardscape project in the KC metro market.</p></div><div style="overflow-x:auto;"><table class="bm"><thead><tr><th>Metric</th><th class="c-bad">Concern</th><th class="c-warn">Okay</th><th class="c-good">Strong</th></tr></thead><tbody><tr><td><strong>Click Rate (CTR)</strong><div class="bm-sub">Hardscape is niche — low volume is normal</div></td><td class="c-bad">&lt;2%</td><td class="c-warn">2–5%</td><td class="c-good">&gt;5%</td></tr><tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr><tr><td><strong>Cost Per Lead</strong><div class="bm-sub">At $50K/job, you can absorb significant CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr><tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr><tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:800;text-align:left;">$3,000 per lead</td></tr></tbody></table></div></div>':'');
+}
+
+// ── CHECKLIST ─────────────────────────────
+function buildChecklist(camp){
+  return '<div class="done-banner" id="done-banner"><strong>Week complete.</strong><p>Reset when you\'re ready to start the next week.</p></div>'
+  +'<div class="card"><div class="prog-wrap"><div class="prog-row"><span class="prog-lbl">Weekly Progress</span><span class="prog-num" id="prog-num">0 / 9</span></div><div class="prog-bg"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div></div></div>'
+  +'<div class="slbl">Priority — Do These First</div>'
+  +'<div class="card"><ul class="cl">'
+  +[
+    ['Pull the Search Terms Report and remove wasteful keywords','Keywords → Search Terms. Look for anything that isn\'t a homeowner ready to spend.','Block immediately: "DIY patio," "paver cost calculator," "cheap pavers," "how to build," "paver rental," "backyard ideas."','Priority'],
+    ['Count qualified Calendly bookings — that\'s the only metric that matters','Clicks and impressions are noise. A Calendly booking with one of your designers is the only number that moves your business forward.','At your price point, 1–2 genuine bookings per week is a strong pipeline. One closed job equals $50K.','Priority'],
+    ['Check your cost per lead against the $3,000 threshold','Enter your numbers in Health Check. At a $50K average and 30% close rate, you can justify spending up to $3,000 per lead and still profit.','Under $500 CPL is exceptional. Under $1,000 is very profitable.','Priority'],
+  ].map(function(t){return '<li onclick="togCL(this)"><div class="chk"></div><div class="ci"><div class="ct">'+t[0]+'</div><div class="cd">'+t[1]+'</div><div class="cnote">'+t[2]+'</div></div><span class="ctag tag-priority">'+t[3]+'</span></li>';}).join('')
+  +'</ul></div>'
+  +'<div class="slbl">Strategic — Weekly Review</div>'
+  +'<div class="card"><ul class="cl">'
+  +[
+    ['Assess lead quality, not just lead count','Were the people who booked consultations actually serious buyers? Tire-kickers are a landing page and ad copy problem.','Your ad copy should pre-qualify before the click. Words like "premium," "custom," and "from $25K" filter out the wrong people.','Strategic'],
+    ['Confirm ads are running when your designers can respond','Reports → Ad Schedule. A buyer who books and doesn\'t receive follow-up within a few hours will move on.','Make sure someone follows up personally before end of business day. The gap between booking and first human contact is where deals are lost.','Strategic'],
+    ['Verify you\'re targeting the right KC neighborhoods','Reports → Geographic. You want clicks from Leawood, Overland Park, Prairie Village, Lenexa — not Lawrence or rural Missouri.','Every click from outside your real buyer profile is wasted spend.','Strategic'],
+  ].map(function(t){return '<li onclick="togCL(this)"><div class="chk"></div><div class="ci"><div class="ct">'+t[0]+'</div><div class="cd">'+t[1]+'</div><div class="cnote">'+t[2]+'</div></div><span class="ctag tag-strategic">'+t[3]+'</span></li>';}).join('')
+  +'</ul></div>'
+  +'<div class="slbl">Growth — When You Have Time</div>'
+  +'<div class="card"><ul class="cl">'
+  +[
+    ['Add or refresh project photos on your landing page','Someone considering a $50K project will want to see your work before they book. No recent, high-quality photos is the single biggest conversion leak.','Outdoor kitchens, fire pit patios, and pool surrounds photograph best. Before-and-after shots convert particularly well.','Growth'],
+    ['Test a headline that includes a project price range','Price anchors repel tire-kickers and attract buyers who already understand what premium hardscape costs.','Try: "Custom Patios Starting at $25K." You want two serious leads — not twenty bad ones.','Growth'],
+    ['Log your full pipeline — leads, consults, proposals, closes','Track the complete funnel, not just ad metrics. This is the data that tells you what your ads are actually worth.','Even one closed job per month from a $1,500 ad spend is a 33x return.','Growth'],
+  ].map(function(t){return '<li onclick="togCL(this)"><div class="chk"></div><div class="ci"><div class="ct">'+t[0]+'</div><div class="cd">'+t[1]+'</div><div class="cnote">'+t[2]+'</div></div><span class="ctag tag-growth">'+t[3]+'</span></li>';}).join('')
+  +'</ul></div>'
+  +'<div class="card"><div class="card-head"><h3>Pipeline Notes</h3><p>Track leads, consultations, proposals, and closes here each week.</p></div>'
+  +'<div class="card-body"><textarea class="notes-area" id="my-notes" placeholder="e.g. 2 Calendly bookings this week. Consultation Tuesday — Johnson County, approx. $60K project."></textarea>'
+  +'<div class="btn-row"><button class="btn btn-gold" onclick="saveNotes()">Save Notes</button><span class="saved" id="saved-msg">Saved</span>'
+  +'<button class="btn btn-ghost" onclick="resetWeek()" style="margin-left:auto;">Reset for New Week</button></div>'
+  +'</div></div>';
+}
+
+// ── KEYWORDS ──────────────────────────────
+function buildKeywords(camp){
+  // Sub-tab shell — Keywords and Negatives live inside here
+  var el = document.createElement('div');
+
+  // Sub-tab bar
+  var subBar = document.createElement('div');
+  subBar.style.cssText = 'display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;';
+
+  var kwBtn  = document.createElement('button');
+  var negBtn = document.createElement('button');
+  var baseStyle = 'padding:10px 20px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;color:var(--muted);';
+  var activeStyle = 'color:var(--stone);border-bottom-color:var(--gold);';
+  kwBtn.style.cssText  = baseStyle + activeStyle;
+  negBtn.style.cssText = baseStyle;
+  kwBtn.textContent  = 'Keywords';
+  negBtn.textContent = 'Negative Keywords';
+
+  var kwPane  = document.createElement('div');
+  var negPane = document.createElement('div');
+  negPane.style.display = 'none';
+
+  // Sub-tab switching wired in wireKWButtons after DOM renders
+  kwBtn.id  = 'kw-subtab-btn';
+  negBtn.id = 'neg-subtab-btn';
+
+  subBar.appendChild(kwBtn);
+  subBar.appendChild(negBtn);
+  el.appendChild(subBar);
+
+  // ── Keywords pane ──
+  kwPane.innerHTML = '<div class="alert alert-gold"><strong>Track every keyword across its full lifecycle.</strong> From testing to active to paused or removed.</div>'
+    + '<div class="card"><div class="card-head"><h3>Add Keyword</h3><p>Track a keyword, its match type, and notes as you learn what works.</p></div><div class="card-body">'
+    + '<div class="input-grid" style="margin-bottom:10px;">'
+    + '<div class="mf" style="grid-column:span 2;"><label>Keyword</label><input type="text" id="kw-text" placeholder="e.g. hardscape contractor Kansas City" style="font-size:13px;font-family:inherit;"></div>'
+    + '<div class="mf"><label>Match Type</label><select id="kw-match" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option>Exact</option><option>Phrase</option><option>Broad</option></select></div>'
+    + '<div class="mf"><label>Status</label><select id="kw-status" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option>Active</option><option>Testing</option><option>Paused</option><option>Removed</option></select></div>'
+    + '</div>'
+    + '<div class="mf" style="margin-bottom:10px;"><label>Notes</label><input type="text" id="kw-notes" placeholder="e.g. Strong performer, $14 CPC, mostly Johnson County clicks" style="font-size:13px;font-family:inherit;"></div>'
+    + '<button class="btn btn-gold" id="kw-add-btn">Add Keyword</button><span class="saved" id="kw-saved">Saved</span>'
+    + '</div></div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="kw-filters">'
+    + '<button class="kw-filter-btn kw-f-active" data-filter="all">All</button>'
+    + '<button class="kw-filter-btn" data-filter="Active">Active</button>'
+    + '<button class="kw-filter-btn" data-filter="Testing">Testing</button>'
+    + '<button class="kw-filter-btn" data-filter="Paused">Paused</button>'
+    + '<button class="kw-filter-btn" data-filter="Removed">Removed</button>'
+    + '</div>'
+    + '<div id="kw-list"></div>'
+    + '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>AI Keyword Strategy</h3><p>Analyzes your full keyword inventory and recommends what to add, cut, and test.</p></div>'
+    + '<div class="card-body"><button class="btn btn-gold" id="kw-ai-btn" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Analyze My Keyword Strategy</button>'
+    + '<div id="kw-ai-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Analyzing your keyword strategy...</div>'
+    + '<div id="kw-ai-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'
+    + '</div></div>';
+
+  // ── Negatives pane ──
+  negPane.innerHTML = '<div class="alert alert-neutral"><strong>Your negative keyword list is your most important budget protection tool.</strong> Check off each one as you add it to Google Ads.</div>'
+    + '<div class="card"><div class="card-head"><h3>Add Negative Keyword</h3></div><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">'
+    + '<div class="mf" style="flex:1;min-width:200px;margin-bottom:0;"><label>Keyword</label><input type="text" id="neg-input" placeholder="e.g. cheap patio ideas" style="font-size:13px;font-family:inherit;"></div>'
+    + '<button class="btn btn-gold" id="neg-add-btn">Add</button><span class="saved" id="neg-saved">Added</span>'
+    + '</div></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">'
+    + '<div style="font-size:11px;color:var(--muted);">Check off each keyword after adding it in Google Ads. <span id="neg-count" style="font-weight:700;color:var(--stone);"></span></div>'
+    + '<button class="btn btn-ghost" id="neg-copy-btn" style="font-size:11px;">Copy All to Clipboard</button>'
+    + '</div>'
+    + '<div id="neg-list"></div>'
+    + '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>AI Negative Keyword Recommendations</h3><p>Surfaces wasteful search terms you may be missing based on your active keywords and KCH context.</p></div>'
+    + '<div class="card-body"><button class="btn btn-gold" id="neg-ai-btn" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Find Missing Negative Keywords</button>'
+    + '<div id="neg-ai-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Reviewing your negative keyword coverage...</div>'
+    + '<div id="neg-ai-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'
+    + '</div></div>';
+
+  el.appendChild(kwPane);
+  el.appendChild(negPane);
+  return el.innerHTML;
+}
+
+
+// ── CHANGE LOG ────────────────────────────
+function buildChanges(camp){
+  return '<div class="alert alert-neutral"><strong>Log every campaign change you make.</strong> When performance shifts — good or bad — this is how you\'ll know exactly what caused it.</div>'
+  +'<div class="card"><div class="card-head"><h3>Log a Change</h3><p>Record what changed, why, and what you expected. Fill in the actual outcome later.</p></div><div class="card-body">'
+  +'<div class="input-grid" style="margin-bottom:10px;">'
+  +'<div class="mf"><label>Date</label><input type="date" id="cl-date" style="font-size:13px;font-weight:500;font-family:inherit;"></div>'
+  +'<div class="mf"><label>Category</label><select id="cl-cat" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option>Bidding Strategy</option><option>Budget</option><option>Keywords</option><option>Negative Keywords</option><option>Ad Copy</option><option>Landing Page</option><option>Targeting</option><option>Conversion Tracking</option><option>Ad Schedule</option><option>Other</option></select></div>'
+  +'</div>'
+  +'<div class="mf" style="margin-bottom:10px;"><label>What Changed</label><input type="text" id="cl-what" placeholder="e.g. Switched from Target CPA to Maximize Conversions" style="font-size:13px;font-family:inherit;"></div>'
+  +'<div class="mf" style="margin-bottom:10px;"><label>Why</label><input type="text" id="cl-why" placeholder="e.g. Learning phase reset after conversion goal change" style="font-size:13px;font-family:inherit;"></div>'
+  +'<div class="mf" style="margin-bottom:12px;"><label>Expected Outcome</label><input type="text" id="cl-expected" placeholder="e.g. Impressions should return in 5–7 days" style="font-size:13px;font-family:inherit;"></div>'
+  +'<button class="btn btn-gold" onclick="addChange()">Log Change</button><span class="saved" id="cl-saved">Logged</span>'
+  +'</div></div>'
+  +'<div id="cl-list"></div>'  +'<div class="card" style="margin-top:16px;">'  +'<div class="card-head"><h3>AI Change Analyzer</h3>'  +'<p>Reads your most recent logged change alongside your performance history and tells you if it looks smart, risky, or needs watching.</p></div>'  +'<div class="card-body">'  +'<div id="cl-ai-output" style="display:none;margin-bottom:12px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'  +'<div id="cl-ai-loading" style="display:none;text-align:center;padding:14px;color:var(--muted);font-size:13px;">Analyzing this change...</div>'  +'<button class="btn btn-gold" id="cl-ai-btn" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Analyze Latest Change</button>'  +'</div></div>';}
+
+// ── NEGATIVES ─────────────────────────────
+function buildNegatives(camp){
+  return '<div class="alert alert-neutral"><strong>Your negative keyword list is your most important budget protection tool.</strong> Check off each one as you add it to Google Ads. Add new ones weekly from your Search Terms Report.</div>'
+  +'<div class="card"><div class="card-head"><h3>Add Negative Keyword</h3></div><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">'
+  +'<div class="mf" style="flex:1;min-width:200px;margin-bottom:0;"><label>Keyword</label><input type="text" id="neg-input" placeholder="e.g. cheap patio ideas" style="font-size:13px;font-family:inherit;" onkeydown="if(event.key===\'Enter\')addNeg()"></div>'
+  +'<button class="btn btn-gold" onclick="addNeg()">Add</button><span class="saved" id="neg-saved">Added</span>'
+  +'</div></div>'
+  +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">'
+  +'<div style="font-size:11px;color:var(--muted);">Check off each keyword after adding it in Google Ads. <span id="neg-count" style="font-weight:700;color:var(--stone);"></span></div>'
+  +'<button class="btn btn-ghost" onclick="copyNegs()" style="font-size:11px;">Copy All to Clipboard</button>'
+  +'</div>'
+  +'<div id="neg-list"></div>'  +'<div class="card" style="margin-top:16px;">'  +'<div class="card-head">'  +'<h3>AI Negative Keyword Recommendations</h3>'  +'<p>Reviews your current negative list, active keywords, and KCH campaign context to surface wasteful search terms you may be missing.</p>'  +'</div>'  +'<div class="card-body">'  +'<button class="btn btn-gold" id="neg-ai-btn" onclick="getNegRec()" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Find Missing Negative Keywords</button>'  +'<div id="neg-ai-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Reviewing your negative keyword coverage...</div>'  +'<div id="neg-ai-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'  +'</div></div>';
+}
+
+// ── SEASON ────────────────────────────────
+function buildSeason(){
+  var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var seas=[{s:'cold',l:'Off',h:10},{s:'cold',l:'Off',h:10},{s:'warm',l:'Ramp',h:55},{s:'hot',l:'Peak',h:100},{s:'hot',l:'Peak',h:100},{s:'hot',l:'Peak',h:95},{s:'hot',l:'Peak',h:90},{s:'hot',l:'Peak',h:85},{s:'warm',l:'Taper',h:60},{s:'warm',l:'Wind Down',h:35},{s:'cold',l:'Low',h:15},{s:'cold',l:'Off',h:10}];
+  var curMo=new Date().getMonth();
+  var moStrats=['January: Pause or reduce to minimum budget. Ground is frozen. Save for March.','February: Start preparing. Build and test spring campaigns before the season begins.','March: Ramp up aggressively — before your competitors. This is your head-start window.','April: Full budget. Peak season is here. Every booking now could be a summer install.','May: Full budget. Your highest-intent booking month. Maximize visibility evenings and weekends.','June: Full budget. Start booking fall projects. Don\'t let installs distract from lead pipeline.','July: Full budget. Homeowners planning fall spaces are searching now. Book September and October.','August: Full budget — last major push. Add urgency messaging: "Book Now for Fall Installation."','September: Moderate budget. Final push to fill fall calendar. Urgency messaging performs well.','October: Reduce significantly. Maintain minimal presence for early planners.','November: Low budget or pause. If running anything, shift to "Plan Your Spring Project Now."','December: Pause main campaign. Save budget for March.'];
+  var moFull=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var grid=mos.map(function(m,i){var s=seas[i];var cls=s.s==='hot'?'mo-hot':s.s==='warm'?'mo-warm':'mo-cold';var bc=s.s==='hot'?'#f59e0b':s.s==='warm'?'#34d399':'#d1d5db';var hi=i===curMo?'box-shadow:0 0 0 2px var(--gold);':'';return'<div class="mo '+cls+'" style="'+hi+'"><div class="mo-name">'+m+'</div><div class="mo-bar" style="background:'+bc+';width:'+s.h+'%;"></div><div class="mo-status">'+s.l+'</div></div>';}).join('');
+  return '<div class="alert alert-gold"><strong>Hardscape is one of the most seasonal businesses in Google Ads.</strong> The businesses that win in KC hardscape go heavy during peak and dark in winter.</div>'
+  +'<div class="card"><div class="card-head"><h3>Kansas City Hardscape Season</h3><p>When to spend, when to pull back. The outlined month is today.</p></div><div class="card-body"><div class="season-grid">'+grid+'</div></div></div>'
+  +'<div class="card"><div class="card-head"><h3>Monthly Strategy</h3></div><div style="overflow-x:auto;"><table class="bm"><thead><tr><th>Period</th><th style="text-align:left;">Move</th><th style="text-align:left;">Why</th></tr></thead><tbody>'
+  +'<tr><td><strong>Jan–Feb</strong></td><td style="color:#d97706;font-weight:700;text-align:left;">Pause or minimum</td><td style="font-size:11px;color:var(--muted);text-align:left;">KC ground frozen. Save budget for March.</td></tr>'
+  +'<tr><td><strong>March</strong></td><td style="color:#2563eb;font-weight:700;text-align:left;">Ramp up early</td><td style="font-size:11px;color:var(--muted);text-align:left;">Get visible before competitors wake up.</td></tr>'
+  +'<tr><td><strong>Apr–Jun</strong></td><td style="color:#16a34a;font-weight:700;text-align:left;">Full budget</td><td style="font-size:11px;color:var(--muted);text-align:left;">Peak season. Highest intent. Spend aggressively.</td></tr>'
+  +'<tr><td><strong>Jul–Aug</strong></td><td style="color:#16a34a;font-weight:700;text-align:left;">Full budget</td><td style="font-size:11px;color:var(--muted);text-align:left;">Book fall projects. Don\'t let installs kill pipeline.</td></tr>'
+  +'<tr><td><strong>Sep</strong></td><td style="color:#2563eb;font-weight:700;text-align:left;">Book fall calendar</td><td style="font-size:11px;color:var(--muted);text-align:left;">Last real push. Urgency messaging works.</td></tr>'
+  +'<tr><td><strong>Oct–Dec</strong></td><td style="color:#d97706;font-weight:700;text-align:left;">Reduce significantly</td><td style="font-size:11px;color:var(--muted);text-align:left;">Demand drops sharply. Pause in December.</td></tr>'
+  +'</tbody></table></div></div>'
+  +'<div class="card"><div class="card-head"><h3>'+moFull[curMo]+' Strategy</h3></div><div class="card-body"><p style="font-size:13px;line-height:1.85;color:var(--stone);">'+moStrats[curMo]+'</p></div></div>';
+}
+
+// ── SIGNALS ───────────────────────────────
+function buildSignals(){
+  return '<div class="alert alert-neutral"><strong>These warning signs are specific to low-volume, high-ticket local service businesses.</strong> Generic Google Ads advice is calibrated for e-commerce. Kansas City Hardscapes operates completely differently.</div>'
+  +'<div class="slbl">Signals Your Ads Are Working Against You</div>'
+  +'<div class="card">'
+  +[['r','High clicks, zero Calendly bookings','You\'re attracting browsers, not buyers. Most likely cause: keywords are too broad, no price anchor in ad copy, or your landing page doesn\'t look premium. Add a project minimum to your copy before anything else.'],
+    ['r','People book Calendly but don\'t show up to the consultation','Your ad is under-qualifying. Add a required question to your Calendly form: "Is your project budget $25,000 or more?"'],
+    ['r','Most leads asking "how much does a patio cost?"','You\'re attracting early-stage researchers. Switch your CTA from "Learn More" to "Book a Design Consultation." Add a starting price to your headline.'],
+    ['a','Budget running out before noon','Check Reports → Ad Schedule by hour. Buyers in the $50K range often research in the evenings. If budget is depleted by afternoon, you\'re missing the decision window.'],
+    ['a','Clicks coming from outside Johnson County','Go to Reports → Geographic. Tighten location targeting to your real service radius. Every click from Lawrence or rural Missouri is budget leaving your account with no realistic chance of converting.'],
+    ['a','Low impression share despite adequate budget','Add Search Impression Share column under Campaigns. Below 30% means competitors are consistently outranking you. Check Quality Score first.']
+  ].map(function(r){return '<div class="signal-row"><div class="sdot dot-'+r[0]+'"></div><div><strong>'+r[1]+'</strong><p>'+r[2]+'</p></div></div>';}).join('')
+  +'</div>'
+  +'<div class="slbl">Signs Your Ads Are Actually Working</div>'
+  +'<div class="card">'
+  +[['g','1–3 quality Calendly bookings per week','At your price point, this is an excellent pipeline. Two consultations per week at a 30% close rate is roughly 2–3 jobs per month from ads alone.'],
+    ['g','Cost per booking under $300','At $50K average job value, a $300 CPL gives you a 50x return on a closed job. Protect your negative keyword list every week without fail.'],
+    ['g','Consultation show rate above 60%','If more than 6 in 10 Calendly bookings are actually showing up to talk to your designers, your ads are attracting pre-qualified, serious buyers.']
+  ].map(function(r){return '<div class="signal-row"><div class="sdot dot-'+r[0]+'"></div><div><strong>'+r[1]+'</strong><p>'+r[2]+'</p></div></div>';}).join('')
+  +'</div>';
+}
+
+// ══════════════════════════════════════════
+// RECOVERY LOGIC
+// ══════════════════════════════════════════
+var RESET_DATE = new Date('2026-03-02');
+var phaseNames = ['Reset','Warming','Learning','Stabilizing','Recovered'];
+var phaseSubs = [
+  'Reset on March 2 · Switched to Maximize Conversions · Target CPA removed',
+  'Impressions beginning to return — do not make any changes',
+  'Algorithm actively collecting data — patience required',
+  'Performance stabilizing — monitor closely before any changes',
+  'Campaign fully recovered — consider reintroducing Target CPA'
+];
+
+function initRecovery(camp){
+  var days = getDaysFor(camp.resetDate);
+  var el = document.getElementById('day-count');
+  if(el) el.textContent = days;
+  updatePhaseDots(camp.phase);
+  updatePhaseHeader(camp);
+  setDefaultLogDate();
+  renderLogTable(camp);
+  renderLogTotals(camp);
+}
+
+function getDaysSinceReset(camp){
+  var rd = camp ? camp.resetDate : '2026-03-02';
+  var now = new Date();
+  var chicagoNow = new Date(now.toLocaleString('en-US', {timeZone: 'America/Chicago'}));
+  var reset = new Date(rd + 'T00:00:00');
+  var chicagoReset = new Date(reset.toLocaleString('en-US', {timeZone: 'America/Chicago'}));
+  chicagoNow.setHours(0,0,0,0);
+  chicagoReset.setHours(0,0,0,0);
+  var diff = Math.floor((chicagoNow - chicagoReset) / 86400000) + 1;
+  return diff > 0 ? diff : 1;
+}
+
+function updatePhaseHeader(camp){
+  var days = getDaysSinceReset(camp);
+  var phase = camp ? camp.phase : 0;
+  var dc = document.getElementById('day-count');
+  if(dc) dc.textContent = days;
+  var pn = document.getElementById('phase-name-main');
+  if(pn) pn.textContent = phaseNames[phase];
+  var ps = document.getElementById('phase-status-sub');
+  if(ps) ps.textContent = phaseSubs[phase];
+  var dLeft = Math.max(0, 14 - days);
+  var badge = document.getElementById('phase-badge');
+  var dlv = document.getElementById('days-left-val');
+  if(dlv) dlv.textContent = dLeft === 0 ? 'Done' : dLeft;
+  if(badge){
+    if(dLeft===0){badge.style.background='#f0faf5';badge.style.borderColor='#6ee7b7';badge.style.color='#155e3e';}
+    else if(dLeft<=4){badge.style.background='#fffbeb';badge.style.borderColor='#fcd34d';badge.style.color='#78350f';}
+    else{badge.style.background='#fee2e2';badge.style.borderColor='#fca5a5';badge.style.color='#9b1c1c';}
+  }
+  var pct = Math.min(100,(phase/4)*100);
+  var pl = document.getElementById('phase-progress-line');
+  if(pl) pl.style.width = pct+'%';
+  var hp = document.getElementById('hdr-campaign-name');
+  if(hp && camp){
+    hp.textContent = camp.name + '  ·  Day '+days+(phase===4?' — Recovered':' — '+phaseNames[phase]);
+  }
+}
+
+function updatePhaseDots(phase){
+  for(var i=0;i<5;i++){
+    var d=document.getElementById('pd'+i),l=document.getElementById('pl'+i);
+    if(!d)continue;
+    d.className='pdot';
+    if(i<phase){d.classList.add('done');d.textContent='✓';}
+    else{d.textContent=(i+1);if(i===phase){d.classList.add('active');if(l)l.classList.add('active');}else{if(l)l.classList.remove('active');}}
+  }
+}
+
+function advPhase(){
+  var camp=getCamp(activeCampId);
+  if(!camp)return;
+  if(camp.phase<4){camp.phase++;save('campaigns',campaigns);updatePhaseDots(camp.phase);updatePhaseHeader(camp);}
+}
+function resetPhase(){
+  if(!confirm('Reset phase back to the beginning?'))return;
+  var camp=getCamp(activeCampId);
+  if(!camp)return;
+  camp.phase=0;save('campaigns',campaigns);updatePhaseDots(0);updatePhaseHeader(camp);
+}
+function togR(el){el.classList.toggle('done');}
+
+function setDefaultLogDate(){
+  var el=document.getElementById('log-date');
+  if(!el)return;
+  var t=new Date();
+  el.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+}
+
+function addLogEntry(){
+  var camp=getCamp(activeCampId); if(!camp)return;
+  var dateVal=document.getElementById('log-date').value;
+  if(!dateVal){alert('Please enter a date.');return;}
+  var impr=parseFloat(document.getElementById('log-impr').value)||0;
+  var clicks=parseFloat(document.getElementById('log-clicks').value)||0;
+  var spend=parseFloat(document.getElementById('log-spend').value)||0;
+  var conv=parseFloat(document.getElementById('log-conv').value)||0;
+  var dayNum=Math.floor((new Date(dateVal)-new Date(camp.resetDate))/864e5)+1;
+  var sig,sigColor;
+  if(!impr&&!spend){sig='No data';sigColor='#9ca3af';}
+  else if(impr>=40&&conv>0){sig='Recovering';sigColor='#155e3e';}
+  else if(impr>=20){sig='Warming';sigColor='#d97706';}
+  else if(impr>0){sig='Still low';sigColor='#991b1b';}
+  else{sig='No impressions';sigColor='#991b1b';}
+  camp.logEntries.push({date:dateVal,day:dayNum,impr:impr,clicks:clicks,spend:spend,conv:conv,sig:sig,sigColor:sigColor});
+  camp.logEntries.sort(function(a,b){return a.date.localeCompare(b.date);});
+  save('campaigns',campaigns);
+  ['log-impr','log-clicks','log-spend','log-conv'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  var m=document.getElementById('log-msg');if(m){m.style.display='block';setTimeout(function(){m.style.display='none';},2000);}
+  renderLogTable(camp);renderLogTotals(camp);
+}
+
+function removeLogEntry(idx){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  camp.logEntries.splice(idx,1);save('campaigns',campaigns);
+  renderLogTable(camp);renderLogTotals(camp);
+}
+
+function renderLogTable(camp){
+  var tbody=document.getElementById('log-tbody');if(!tbody)return;
+  if(!camp.logEntries||camp.logEntries.length===0){
+    tbody.innerHTML='<tr><td colspan="8" style="padding:20px 10px;text-align:center;color:var(--muted);font-size:12px;font-style:italic;">No entries yet.</td></tr>';return;
+  }
+  tbody.innerHTML=camp.logEntries.map(function(e,i){
+    var df=new Date(e.date).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var bg=i%2===1?'background:#faf9f7;':'';
+    return'<tr style="'+bg+'"><td style="padding:9px 10px;font-weight:600;white-space:nowrap;">'+df+'</td>'
+      +'<td style="padding:9px 10px;color:var(--muted);white-space:nowrap;">Day '+e.day+'</td>'
+      +'<td style="padding:9px 10px;text-align:right;font-family:monospace;font-weight:700;">'+e.impr+'</td>'
+      +'<td style="padding:9px 10px;text-align:right;font-family:monospace;font-weight:700;">'+e.clicks+'</td>'
+      +'<td style="padding:9px 10px;text-align:right;font-family:monospace;font-weight:700;">$'+e.spend.toFixed(0)+'</td>'
+      +'<td style="padding:9px 10px;text-align:right;font-family:monospace;font-weight:700;">'+e.conv+'</td>'
+      +'<td style="padding:9px 10px;text-align:center;"><span style="font-size:10px;font-weight:700;color:'+e.sigColor+';">'+e.sig+'</span></td>'
+      +'<td style="padding:9px 6px;text-align:center;"><button onclick="removeLogEntry('+i+')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 6px;">&#10005;</button></td></tr>';
+  }).join('');
+}
+
+function renderLogTotals(camp){
+  var el=document.getElementById('log-totals');if(!el)return;
+  if(!camp.logEntries||camp.logEntries.length===0){el.style.display='none';return;}
+  el.style.display='block';
+  var ts=camp.logEntries.reduce(function(s,e){return s+e.spend;},0);
+  var tc=camp.logEntries.reduce(function(s,e){return s+e.conv;},0);
+  var ti=camp.logEntries.reduce(function(s,e){return s+e.impr;},0);
+  var ai=Math.round(ti/camp.logEntries.length);
+  var cpl=tc>0?(ts/tc):null;
+  var tots=document.getElementById('tot-spend');if(tots)tots.textContent='$'+ts.toFixed(0);
+  var totc=document.getElementById('tot-conv');if(totc)totc.textContent=tc;
+  var toti=document.getElementById('tot-impr');if(toti)toti.textContent=ai;
+  var totcpl=document.getElementById('tot-cpl');if(totcpl)totcpl.textContent=cpl?'$'+Math.round(cpl):'—';
+  var ct=document.getElementById('tot-conv-tile');if(ct)ct.className='tile '+(tc>=5?'good':tc>=2?'warn':'neu');
+  var it=document.getElementById('tot-impr-tile');if(it)it.className='tile '+(ai>=30?'good':ai>=10?'warn':'bad');
+}
+
+// ══════════════════════════════════════════
+// HEALTH CHECK
+// ══════════════════════════════════════════
+function runH(){
+  var clicks=parseFloat(document.getElementById('h-clicks').value)||0;
+  var impr=parseFloat(document.getElementById('h-impr').value)||0;
+  var spend=parseFloat(document.getElementById('h-spend').value)||0;
+  var leads=parseFloat(document.getElementById('h-leads').value)||0;
+  var consultsEl=document.getElementById('h-consults');
+  var consults=consultsEl?parseFloat(consultsEl.value)||0:0;
+  if(!clicks&&!impr&&!spend){document.getElementById('h-results').style.display='none';return;}
+  document.getElementById('h-results').style.display='block';
+  var ctr=impr?(clicks/impr*100):null;
+  var cpc=clicks?(spend/clicks):null;
+  var cpl=leads?(spend/leads):null;
+  var cr=leads?(consults/leads*100):null;
+  var tiles=[
+    {l:'Click Rate (CTR)',f:ctr!==null?ctr.toFixed(1)+'%':'—',c:ctr===null?'neu':ctr>=5?'good':ctr>=2?'warn':'bad',b:'Target: above 2%'},
+    {l:'Cost Per Click',f:cpc!==null?'$'+cpc.toFixed(2):'—',c:cpc===null?'neu':cpc<10?'good':cpc<25?'warn':'bad',b:'Target: under $25'},
+    {l:'Cost Per Lead',f:cpl!==null?'$'+Math.round(cpl):'—',c:cpl===null?'neu':cpl<150?'good':cpl<500?'warn':'bad',b:'Max viable: $3,000'},
+    {l:'Consultation Rate',f:cr!==null?cr.toFixed(0)+'%':'—',c:cr===null?'neu':cr>=60?'good':cr>=30?'warn':'bad',b:'Target: above 60%'},
+  ];
+  document.getElementById('h-tiles').innerHTML=tiles.map(function(t){return'<div class="tile '+t.c+'"><div class="tile-lbl">'+t.l+'</div><div class="tile-val">'+t.f+'</div><div class="tile-sub">'+t.b+'</div></div>';}).join('');
+  var pj=Math.round(consults*0.3*10)/10,pr=pj*50000,proas=spend?(pr/spend).toFixed(1)+'x':'—';
+  document.getElementById('h-jcalc').innerHTML='<h3>What This Means in Real Money</h3>'
+    +'<div class="jrow"><span class="jlbl">Ad spend this week</span><span class="jval">$'+(spend||0)+'</span></div>'
+    +'<div class="jrow"><span class="jlbl">Consultations booked</span><span class="jval">'+(consults||0)+'</span></div>'
+    +'<div class="jrow"><span class="jlbl">Projected closed jobs (30% close rate)</span><span class="jval gold">'+pj+'</span></div>'
+    +'<div class="jrow"><span class="jlbl">Projected revenue at $50K avg</span><span class="jval '+(pr>0?'green':'')+'">$'+pr.toLocaleString()+'</span></div>'
+    +'<div class="jdiv"></div>'
+    +'<div class="jrow"><span class="jlbl" style="color:rgba(255,255,255,.8);font-weight:700;">Projected return on ad spend</span><span class="jval gold" style="font-size:20px;">'+proas+'</span></div>';
+  var vc,vt,vbody,va;
+  if(leads===0&&clicks>5){vc='v-bad';vt='Getting clicks but zero leads.';vbody='You\'re spending budget but nobody is booking. This is almost always a landing page problem.';va='Check your landing page on a phone right now. Is there a visible Calendly button above the fold?';}
+  else if(leads>0&&consults===0){vc='v-warn';vt='Getting bookings but nobody is showing up.';vbody='Leads are booking through Calendly but not following through. The price expectation may be misaligned.';va='Add "Is your project budget $25,000 or more?" as a required Calendly question.';}
+  else if(cpl&&cpl<150){vc='v-good';vt='Outstanding — your ads are performing at a high level.';vbody='A cost per lead under $150 for a $50K hardscape business is exceptional.';va='Consider increasing your daily budget by 20–30%. You\'re in a highly profitable range.';}
+  else if(cpl&&cpl<500){vc='v-good';vt='Solid — ads are working well for KCH.';vbody='Your cost per lead is well within profitable range. A $400 CPL gives you ~40x return on a closed job.';va='Focus on lead quality over quantity. Are these buyers in Leawood and Overland Park?';}
+  else if(cpl&&cpl>500){vc='v-warn';vt='Cost per lead is elevated — still viable, worth improving.';vbody='At $'+Math.round(cpl)+' per lead, you remain well under the $3,000 maximum viable threshold.';va='Check your keyword match types. Broad match keywords may be pulling in poor-quality traffic.';}
+  else{vc='v-good';vt='Keep tracking — more data needed.';vbody='Fill in more fields to get a complete picture.';va='Patience is a strategy. Give it 2–3 weeks of data before drawing conclusions.';}
+  var vb=document.getElementById('h-verdict');
+  vb.className='verdict show '+vc;
+  vb.innerHTML='<h4>'+vt+'</h4><div class="vbody">'+vbody+'<div class="vaction"><div class="vaction-lbl">What To Do</div><p>'+va+'</p></div></div>';
+  var rows=[['Clicks',clicks||'—','Each click is a homeowner who engaged with your ad. 10–25 clicks per week is healthy for KC hardscape.'],['Impressions',impr||'—','How often your ad appeared. Low impressions means budget is too low, off-season, or targeting too narrow.'],['Cost Per Click',cpc?'$'+cpc.toFixed(2):'—','$10–25 per click is normal for high-intent hardscape keywords in KC. Over $25 means Quality Score needs attention.'],['Qualified Leads',leads||'—','Calendly bookings are the only lead metric worth tracking. 2–4 bookings per week is an excellent pipeline.'],['Cost Per Lead',cpl?'$'+Math.round(cpl):'—','Your real efficiency number. Under $500 is excellent. Under $1,500 is still very profitable at $50K average.'],['Consultation Rate',cr?cr.toFixed(0)+'%':'—','Under 50% means leads aren\'t pre-qualified. Add a project minimum question to your Calendly form.']];
+  document.getElementById('h-bt').innerHTML='<thead><tr><th>Metric</th><th>Your Number</th><th>What It Means for KCH</th></tr></thead><tbody>'+rows.map(function(r){return'<tr><td style="font-weight:700;white-space:nowrap;">'+r[0]+'</td><td><div class="bt-metric">'+r[1]+'</div></td><td class="bt-note">'+r[2]+'</td></tr>';}).join('')+'</tbody>';
+
+  // Update campaign stats
+  var camp=getCamp(activeCampId);
+  if(camp){camp.stats={spend:Math.round(spend),leads:leads,cpl:cpl?Math.round(cpl):0};save('campaigns',campaigns);}
+}
+
+// ══════════════════════════════════════════
+// AI RECOMMENDATIONS
+// ══════════════════════════════════════════
+async function getAIRec(){
+  var camp=getCamp(activeCampId);
+  var clicks=parseFloat(document.getElementById('h-clicks').value)||0;
+  var impr=parseFloat(document.getElementById('h-impr').value)||0;
+  var spend=parseFloat(document.getElementById('h-spend').value)||0;
+  var leads=parseFloat(document.getElementById('h-leads').value)||0;
+  var consultsEl=document.getElementById('h-consults');
+  var consults=consultsEl?parseFloat(consultsEl.value)||0:0;
+  var btn=document.getElementById('ai-rec-btn');
+  var loading=document.getElementById('ai-rec-loading');
+  var output=document.getElementById('ai-rec-output');
+  btn.style.display='none';loading.style.display='block';output.style.display='none';
+  var ctr=impr?(clicks/impr*100).toFixed(1):null;
+  var cpc=clicks?(spend/clicks).toFixed(2):null;
+  var cpl=leads?(spend/leads).toFixed(0):null;
+  var cr=leads?(consults/leads*100).toFixed(0):null;
+  var days=camp?getDaysSinceReset(camp):1;
+  var recentChanges=camp&&camp.changes?camp.changes.slice(0,3).map(function(c){return c.date+': '+c.what;}).join('; '):'None logged';
+  var activeKWs=camp&&camp.keywords?camp.keywords.filter(function(k){return k.status==='Active';}).map(function(k){return'"'+k.text+'" ('+k.match+')';}).join(', '):'None logged';
+  var pendingNegs=camp&&camp.negatives?camp.negatives.filter(function(n){return !n.added;}).map(function(n){return n.text;}).join(', '):'All added';
+  var prompt="You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape company selling backyard living spaces (patios, outdoor kitchens, fire pit areas) with an average project value of $50,000. Leads come in via a Calendly booking page (/thankyou conversion). The business targets high-income homeowners in Leawood, Overland Park, Prairie Village, and Johnson County, KS.\n\nCURRENT CAMPAIGN: "+( camp?camp.name:'KCH Search')+"\nType: "+(camp?typeLabel(camp.type):'Search')+"\n\nCAMPAIGN CONTEXT:\n- Reset on March 2, 2026 after conversion goal change wiped learning data\n- Currently on Day "+days+" of the ~14-day learning phase recovery\n- Bidding strategy: Maximize Conversions (no Target CPA)\n- Recent changes: "+recentChanges+"\n- Active keywords: "+activeKWs+"\n- Negative keywords still pending: "+pendingNegs+"\n\nTHIS WEEK'S PERFORMANCE:\n- Impressions: "+(impr||0)+"\n- Clicks: "+(clicks||0)+"\n- Ad Spend: $"+(spend||0)+"\n- CTR: "+(ctr||'N/A')+"%\n- CPC: $"+(cpc||'N/A')+"\n- Qualified Leads: "+(leads||0)+"\n- Consultations: "+(consults||0)+"\n- CPL: $"+(cpl||'N/A')+"\n- Lead-to-Consultation Rate: "+(cr||'N/A')+"%\n\nProvide a strategic recommendation that is:\n1. Specific to Day "+days+" of the recovery phase\n2. Prioritized — the single most important thing first, then 2-3 supporting actions\n3. Calibrated to $50K average job value\n4. Honest — don't sugarcoat problems but don't catastrophize normal recovery patterns\n5. Written directly to the business owner in plain language\n\nFormat with a clear priority action at the top, then supporting recommendations. Keep it focused and actionable.";
+  try{
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    var data=await resp.json();
+    var text=data.content&&data.content[0]?data.content[0].text:'No response received.';
+    var formatted=text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
+    output.innerHTML='<div style="padding:14px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);">'+formatted+'</div>'
+      +'<div style="margin-top:10px;text-align:right;"><button class="btn btn-ghost" onclick="document.getElementById(\'ai-rec-btn\').style.display=\'block\';document.getElementById(\'ai-rec-output\').style.display=\'none\';" style="font-size:11px;">Regenerate</button></div>';
+    output.style.display='block';
+  }catch(e){
+    output.innerHTML='<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not generate recommendation. Check your connection and try again.</div>';
+    output.style.display='block';btn.style.display='block';
+  }
+  loading.style.display='none';
+}
+
+// ══════════════════════════════════════════
+// CHECKLIST
+// ══════════════════════════════════════════
+function initChecklist(camp){
+  if(camp&&camp.checklistDone){
+    camp.checklistDone.forEach(function(idx){
+      var items=document.querySelectorAll('#scr-checklist .cl li');
+      if(items[idx]) items[idx].classList.add('done');
+    });
+    updateProg();
+  }
+  var notes=document.getElementById('my-notes');
+  if(notes&&camp) notes.value=camp.pipelineNotes||'';
+}
+function togCL(el){
+  el.classList.toggle('done');
+  updateProg();
+  var camp=getCamp(activeCampId);
+  if(camp){
+    var items=document.querySelectorAll('#scr-checklist .cl li');
+    camp.checklistDone=[];
+    items.forEach(function(li,i){if(li.classList.contains('done'))camp.checklistDone.push(i);});
+    save('campaigns',campaigns);
+  }
+}
+function updateProg(){
+  var all=document.querySelectorAll('#scr-checklist .cl li');
+  var done=document.querySelectorAll('#scr-checklist .cl li.done');
+  if(!all.length)return;
+  var pct=Math.round(done.length/all.length*100);
+  var pf=document.getElementById('prog-fill');if(pf)pf.style.width=pct+'%';
+  var pn=document.getElementById('prog-num');if(pn)pn.textContent=done.length+' / '+all.length;
+  var b=document.getElementById('done-banner');
+  if(b){done.length===all.length?b.classList.add('show'):b.classList.remove('show');}
+}
+function saveNotes(){
+  var camp=getCamp(activeCampId);
+  var notes=document.getElementById('my-notes');
+  if(camp&&notes){camp.pipelineNotes=notes.value;save('campaigns',campaigns);}
+  var m=document.getElementById('saved-msg');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
+}
+function resetWeek(){
+  if(!confirm('Reset checklist for a new week?'))return;
+  document.querySelectorAll('#scr-checklist .cl li').forEach(function(l){l.classList.remove('done');});
+  var n=document.getElementById('my-notes');if(n)n.value='';
+  updateProg();
+  var camp=getCamp(activeCampId);
+  if(camp){camp.checklistDone=[];camp.pipelineNotes='';save('campaigns',campaigns);}
+}
+
+// ══════════════════════════════════════════
+// KEYWORDS
+// ══════════════════════════════════════════
+var kwStatusColors={'Active':{bg:'#f0faf5',border:'#6ee7b7',text:'#155e3e'},'Testing':{bg:'#eff4ff',border:'#bfdbfe',text:'#1e3a8a'},'Paused':{bg:'#fffbeb',border:'#fcd34d',text:'#78350f'},'Removed':{bg:'#fff5f5',border:'#fca5a5',text:'#991b1b'}};
+var kwMatchColors={'Exact':{bg:'#f0faf5',color:'#155e3e'},'Phrase':{bg:'#eff4ff',color:'#1e3a8a'},'Broad':{bg:'#fffbeb',color:'#78350f'}};
+
+
+function wireKWButtons(camp){
+  // Sub-tab switching
+  var kwSubBtn  = document.getElementById('kw-subtab-btn');
+  var negSubBtn = document.getElementById('neg-subtab-btn');
+  var baseStyle   = 'padding:10px 20px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;color:var(--muted);';
+  var activeStyle = 'color:var(--stone);border-bottom-color:var(--gold);';
+  if(kwSubBtn && negSubBtn){
+    var kwPane  = kwSubBtn.parentElement.nextElementSibling;
+    var negPane = negSubBtn.parentElement.nextElementSibling
+                    ? negSubBtn.parentElement.nextElementSibling.nextElementSibling : null;
+    // Better: find by scanning siblings
+    var screens = document.querySelectorAll('#scr-keywords > div');
+    // kwPane is first div after subBar, negPane is second
+    var subBar = document.getElementById('kw-subtab-btn').parentElement;
+    var panes  = [];
+    var sib = subBar.nextElementSibling;
+    while(sib){ panes.push(sib); sib = sib.nextElementSibling; }
+    var kwP  = panes[0];
+    var negP = panes[1];
+    if(kwP && negP){
+      kwSubBtn.addEventListener('click', function(){
+        kwP.style.display  = 'block';
+        negP.style.display = 'none';
+        kwSubBtn.style.cssText  = baseStyle + activeStyle;
+        negSubBtn.style.cssText = baseStyle;
+      });
+      negSubBtn.addEventListener('click', function(){
+        kwP.style.display  = 'none';
+        negP.style.display = 'block';
+        negSubBtn.style.cssText = baseStyle + activeStyle;
+        kwSubBtn.style.cssText  = baseStyle;
+      });
+    }
+  }
+
+  // Add keyword button
+  var addBtn = document.getElementById('kw-add-btn');
+  if(addBtn) addBtn.addEventListener('click', addKW);
+
+  // Filter buttons
+  var filters = document.querySelectorAll('#kw-filters .kw-filter-btn');
+  filters.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      filterKW(btn.getAttribute('data-filter'), btn);
+    });
+  });
+
+  // AI keyword button
+  var aiBtn = document.getElementById('kw-ai-btn');
+  if(aiBtn) aiBtn.addEventListener('click', getKWRec);
+
+  // Negatives buttons
+  var negAdd  = document.getElementById('neg-add-btn');
+  var negCopy = document.getElementById('neg-copy-btn');
+  var negAI   = document.getElementById('neg-ai-btn');
+  var negIn   = document.getElementById('neg-input');
+  if(negAdd)  negAdd.addEventListener('click', addNeg);
+  if(negCopy) negCopy.addEventListener('click', copyNegs);
+  if(negAI)   negAI.addEventListener('click', getNegRec);
+  if(negIn)   negIn.addEventListener('keydown', function(e){ if(e.key==='Enter') addNeg(); });
+}
+
+function addKW(){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var text=document.getElementById('kw-text').value.trim();
+  if(!text){alert('Please enter a keyword.');return;}
+  if(!camp.keywords)camp.keywords=[];
+  camp.keywords.push({id:Date.now(),text:text,match:document.getElementById('kw-match').value,status:document.getElementById('kw-status').value,notes:document.getElementById('kw-notes').value.trim(),added:new Date().toISOString().split('T')[0]});
+  save('campaigns',campaigns);
+  document.getElementById('kw-text').value='';document.getElementById('kw-notes').value='';
+  var m=document.getElementById('kw-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
+  renderKW(camp);
+}
+function updateKWStatus(id,val){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var kw=camp.keywords.find(function(k){return k.id===id;});
+  if(kw){kw.status=val;save('campaigns',campaigns);renderKW(camp);}
+}
+function updateKWNotes(id,val){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var kw=camp.keywords.find(function(k){return k.id===id;});
+  if(kw){kw.notes=val;save('campaigns',campaigns);}
+}
+function removeKW(id){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  camp.keywords=camp.keywords.filter(function(k){return k.id!==id;});
+  save('campaigns',campaigns);renderKW(camp);
+}
+function filterKW(f,btn){
+  var camp=getCamp(activeCampId);if(camp){camp.kwFilter=f;save('campaigns',campaigns);}
+  document.querySelectorAll('.kw-filter-btn').forEach(function(b){b.classList.remove('kw-f-active');});
+  btn.classList.add('kw-f-active');
+  renderKW(camp);
+}
+function renderKW(camp){
+  var list=document.getElementById('kw-list');if(!list)return;
+  if(!camp||!camp.keywords||camp.keywords.length===0){
+    list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords yet. Add your first keyword above.</div>';return;
+  }
+  var filter=camp.kwFilter||'all';
+  var filtered=filter==='all'?camp.keywords:camp.keywords.filter(function(k){return k.status===filter;});
+  if(filtered.length===0){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords with status "'+filter+'".</div>';return;
+  }
+  list.innerHTML=filtered.map(function(kw){
+    var sc=kwStatusColors[kw.status]||{bg:'#f5f3ef',border:'var(--border)',text:'var(--muted)'};
+    var mc=kwMatchColors[kw.match]||{bg:'#f5f3ef',color:'var(--muted)'};
+    var opts=['Active','Testing','Paused','Removed'].map(function(s){return'<option value="'+s+'"'+(kw.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    return'<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--stone);margin-bottom:6px;">'+kw.text+'</div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+mc.bg+';color:'+mc.color+';">'+kw.match+' Match</span>'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+sc.bg+';color:'+sc.text+';border:1px solid '+sc.border+';">'+kw.status+'</span>'
+      +'<span style="font-size:10px;color:var(--muted);">Added '+kw.added+'</span>'
+      +'</div>'
+      +'<input type="text" value="'+kw.notes.replace(/"/g,'&quot;')+'" placeholder="Add a performance note..." onchange="updateKWNotes('+kw.id+',this.value)" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;color:var(--muted);background:var(--surface);outline:none;">'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
+      +'<select onchange="updateKWStatus('+kw.id+',this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:700;color:var(--stone);background:var(--surface);outline:none;cursor:pointer;">'+opts+'</select>'
+      +'<button onclick="removeKW('+kw.id+')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;">Remove</button>'
+      +'</div></div></div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// CHANGE LOG
+// ══════════════════════════════════════════
+var catColors={'Bidding Strategy':{bg:'#fce7f3',color:'#9d174d'},'Budget':{bg:'#fffbeb',color:'#78350f'},'Keywords':{bg:'#f0faf5',color:'#155e3e'},'Negative Keywords':{bg:'#f0faf5',color:'#155e3e'},'Ad Copy':{bg:'#eff4ff',color:'#1e3a8a'},'Landing Page':{bg:'#eff4ff',color:'#1e3a8a'},'Targeting':{bg:'#fff5f5',color:'#991b1b'},'Conversion Tracking':{bg:'#fce7f3',color:'#9d174d'},'Ad Schedule':{bg:'#fffbeb',color:'#78350f'},'Other':{bg:'#f5f3ef',color:'var(--muted)'}};
+
+function setChangeDateDefault(){
+  var el=document.getElementById('cl-date');if(!el)return;
+  var t=new Date();
+  el.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+}
+
+function wireCLButtons(camp){
+  var aiBtn = document.getElementById('cl-ai-btn');
+  if(aiBtn) aiBtn.addEventListener('click', getChangeAI);
+}
+
+async function getChangeAI(){
+  var camp = getCamp(activeCampId);
+  if(!camp || !camp.changes || camp.changes.length === 0){
+    alert('Log a change first.');
+    return;
+  }
+  var btn     = document.getElementById('cl-ai-btn');
+  var loading = document.getElementById('cl-ai-loading');
+  var output  = document.getElementById('cl-ai-output');
+  btn.style.display = 'none';
+  loading.style.display = 'block';
+  output.style.display = 'none';
+
+  var latest = camp.changes[0];
+  var days   = getDaysFor(camp.resetDate);
+  var log    = (camp.perfLog || []).slice(-7).map(function(e){
+    var cpl = e.leads > 0 ? '$'+Math.round(e.spend/e.leads) : 'no leads';
+    return e.date+': '+e.impr+' impr, '+e.clicks+' clicks, $'+e.spend.toFixed(0)+' spend, '+e.leads+' leads, CPL '+cpl;
+  }).join('\n') || 'No performance data logged yet.';
+
+  var prevChanges = camp.changes.slice(1, 4).map(function(c){
+    return c.date+': ['+c.cat+'] '+c.what;
+  }).join('\n') || 'None';
+
+  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $50K average project, $'+camp.budget+'/day budget. Currently Day '+days+' of a learning phase recovery (reset March 2 2026). Buyers are high-income homeowners in Johnson County.\n\n'
+    + 'THE CHANGE JUST LOGGED:\n'
+    + 'Date: '+latest.date+'\n'
+    + 'Category: '+latest.cat+'\n'
+    + 'What: '+latest.what+'\n'
+    + 'Why: '+(latest.why||'Not specified')+'\n'
+    + 'Expected outcome: '+(latest.expected||'Not specified')+'\n\n'
+    + 'RECENT PERFORMANCE (last 7 days):\n'+log+'\n\n'
+    + 'PREVIOUS CHANGES:\n'+prevChanges+'\n\n'
+    + 'Analyze this change and respond with:\n'
+    + '1. VERDICT: Smart Move / Reasonable Risk / Caution / Red Flag\n'
+    + '2. REASONING: 2-3 sentences on why, specific to KCH and where the campaign is right now\n'
+    + '3. WATCH FOR: one specific thing to monitor in the next 7 days\n\n'
+    + 'Be direct. No generic advice.'
+
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:600, messages:[{role:'user',content:prompt}]})
+    });
+    var data = await resp.json();
+    var text = data.content && data.content[0] ? data.content[0].text : 'No response.';
+    var formatted = text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+
+    // Color-code the verdict
+    var verdictColor = '#1c1c1c';
+    if(text.includes('Smart Move'))    verdictColor = '#155e3e';
+    if(text.includes('Reasonable Risk')) verdictColor = '#78350f';
+    if(text.includes('Caution'))        verdictColor = '#92400e';
+    if(text.includes('Red Flag'))       verdictColor = '#991b1b';
+
+    var outDiv = document.createElement('div');
+    outDiv.style.cssText = 'padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);';
+    outDiv.innerHTML = formatted;
+
+    var regenRow = document.createElement('div');
+    regenRow.style.cssText = 'margin-top:10px;text-align:right;';
+    var regenBtn = document.createElement('button');
+    regenBtn.className = 'btn btn-ghost';
+    regenBtn.style.fontSize = '11px';
+    regenBtn.textContent = 'Re-analyze';
+    regenBtn.addEventListener('click', function(){ btn.style.display='block'; output.style.display='none'; });
+    regenRow.appendChild(regenBtn);
+
+    output.innerHTML = '';
+    output.appendChild(outDiv);
+    output.appendChild(regenRow);
+    output.style.display = 'block';
+  } catch(e) {
+    output.innerHTML = '<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not connect. Try again.</div>';
+    output.style.display = 'block';
+    btn.style.display = 'block';
+  }
+  loading.style.display = 'none';
+}
+
+function addChange(){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var what=document.getElementById('cl-what').value.trim();
+  if(!what){alert('Please describe what changed.');return;}
+  if(!camp.changes)camp.changes=[];
+  camp.changes.unshift({id:Date.now(),date:document.getElementById('cl-date').value,cat:document.getElementById('cl-cat').value,what:what,why:document.getElementById('cl-why').value.trim(),expected:document.getElementById('cl-expected').value.trim(),outcome:''});
+  save('campaigns',campaigns);
+  ['cl-what','cl-why','cl-expected'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  var m=document.getElementById('cl-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
+  renderCL(camp);
+  wireCLButtons(camp);
+}
+function updateOutcome(id,val){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var ch=camp.changes.find(function(c){return c.id===id;});
+  if(ch){ch.outcome=val;save('campaigns',campaigns);}
+}
+function removeChange(id){
+  if(!confirm('Remove this entry?'))return;
+  var camp=getCamp(activeCampId);if(!camp)return;
+  camp.changes=camp.changes.filter(function(c){return c.id!==id;});
+  save('campaigns',campaigns);renderCL(camp);
+}
+function renderCL(camp){
+  var list=document.getElementById('cl-list');if(!list)return;
+  if(!camp||!camp.changes||camp.changes.length===0){
+    list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No changes logged yet.</div>';return;
+  }
+  list.innerHTML=camp.changes.map(function(c){
+    var cc=catColors[c.cat]||{bg:'#f5f3ef',color:'var(--muted)'};
+    var ds=c.date?new Date(c.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    return'<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:10px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px;flex-wrap:wrap;">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--stone);">'+ds+'</span>'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;background:'+cc.bg+';color:'+cc.color+';">'+c.cat+'</span>'
+      +'</div>'
+      +'<button onclick="removeChange('+c.id+')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">Remove</button>'
+      +'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--stone);margin-bottom:6px;">'+c.what+'</div>'
+      +(c.why?'<div style="font-size:12px;color:var(--muted);margin-bottom:4px;"><span style="font-weight:700;color:var(--stone);">Why:</span> '+c.why+'</div>':'')
+      +(c.expected?'<div style="font-size:12px;color:var(--muted);margin-bottom:8px;"><span style="font-weight:700;color:var(--stone);">Expected:</span> '+c.expected+'</div>':'')
+      +'<div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);display:block;margin-bottom:4px;">Actual Outcome (fill in later)</label>'
+      +'<input type="text" value="'+(c.outcome||'').replace(/"/g,'&quot;')+'" placeholder="What actually happened after this change..." onchange="updateOutcome('+c.id+',this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;color:var(--stone);background:var(--surface);outline:none;"></div>'
+      +'</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// NEGATIVES
+// ══════════════════════════════════════════
+function addNeg(){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var val=document.getElementById('neg-input').value.trim().toLowerCase();
+  if(!val)return;
+  if(!camp.negatives)camp.negatives=[];
+  if(camp.negatives.some(function(n){return n.text===val;})){alert('Already in your list.');return;}
+  camp.negatives.unshift({text:val,added:false});
+  save('campaigns',campaigns);
+  document.getElementById('neg-input').value='';
+  var m=document.getElementById('neg-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
+  renderNG(camp);
+}
+function toggleNeg(camp,idx){
+  if(!camp||!camp.negatives)return;
+  camp.negatives[idx].added=!camp.negatives[idx].added;
+  save('campaigns',campaigns);renderNG(camp);
+}
+function removeNeg(idx){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  camp.negatives.splice(idx,1);save('campaigns',campaigns);renderNG(camp);
+}
+function copyNegs(){
+  var camp=getCamp(activeCampId);if(!camp||!camp.negatives)return;
+  var text=camp.negatives.map(function(n){return n.text;}).join('\n');
+  navigator.clipboard.writeText(text).then(function(){
+    var btn=event.target;var orig=btn.textContent;btn.textContent='Copied!';
+    setTimeout(function(){btn.textContent=orig;},2000);
+  }).catch(function(){alert('Copy failed — try selecting the list manually.');});
+}
+function renderNG(camp){
+  var list=document.getElementById('neg-list');if(!list)return;
+  var nc=document.getElementById('neg-count');
+  if(!camp||!camp.negatives){if(nc)nc.textContent='';list.innerHTML='';return;}
+  var added=camp.negatives.filter(function(n){return n.added;}).length;
+  if(nc)nc.textContent=added+' of '+camp.negatives.length+' added to Google Ads';
+  if(camp.negatives.length===0){list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No negative keywords yet.</div>';return;}
+  var pending=camp.negatives.map(function(n,i){return{n:n,i:i};}).filter(function(x){return !x.n.added;});
+  var done=camp.negatives.map(function(n,i){return{n:n,i:i};}).filter(function(x){return x.n.added;});
+  function rowHTML(x){
+    var n=x.n,i=x.i;
+    var bg=n.added?'var(--green-lt)':'var(--white)';
+    var cb=n.added?'var(--green)':'var(--border)';
+    var cbg=n.added?'var(--green)':'var(--white)';
+    var fw=n.added?'400':'600';
+    var fc=n.added?'var(--muted)':'var(--stone)';
+    var td=n.added?'line-through':'none';
+    var sc=n.added?'var(--green)':'var(--muted)';
+    var st=n.added?'Added in Ads':'Pending';
+    var campRef="getCamp('"+activeCampId+"')";
+    return'<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #f5f3ef;background:'+bg+';cursor:pointer;" onclick="toggleNeg('+campRef+','+i+');">'
+      +'<div style="width:20px;height:20px;min-width:20px;border-radius:4px;border:2px solid '+cb+';background:'+cbg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+      +(n.added?'<span style="color:#fff;font-size:11px;font-weight:800;">&#10003;</span>':'')+'</div>'
+      +'<div style="flex:1;font-size:13px;font-weight:'+fw+';color:'+fc+';text-decoration:'+td+';">'+n.text+'</div>'
+      +'<div style="font-size:10px;font-weight:700;color:'+sc+';">'+st+'</div>'
+      +'<button onclick="event.stopPropagation();removeNeg('+i+');" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 6px;flex-shrink:0;">&#10005;</button>'
+      +'</div>';
+  }
+  var html='<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;">';
+  if(pending.length){html+='<div style="padding:8px 16px;background:var(--surface);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Still to add in Google Ads — '+pending.length+' remaining</div>';pending.forEach(function(x){html+=rowHTML(x);});}
+  if(done.length){html+='<div style="padding:8px 16px;background:var(--green-lt);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green);border-top:1px solid var(--green-border);border-bottom:1px solid var(--green-border);">Added to Google Ads — '+done.length+' complete</div>';done.forEach(function(x){html+=rowHTML(x);});}
+  html+='</div>';list.innerHTML=html;
+}
+
+
+// ══════════════════════════════════════════
+// AI KEYWORD STRATEGY
+// ══════════════════════════════════════════
+async function getKWRec(){
+  var camp = getCamp(activeCampId);
+  var btn = document.getElementById('kw-ai-btn');
+  var loading = document.getElementById('kw-ai-loading');
+  var output = document.getElementById('kw-ai-output');
+  btn.style.display='none'; loading.style.display='block'; output.style.display='none';
+
+  var active = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Active';}).map(function(k){return '"'+k.text+'" ('+k.match+' match)'+(k.notes?' — '+k.notes:'');}).join('\n') : 'None logged';
+  var testing = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Testing';}).map(function(k){return '"'+k.text+'" ('+k.match+' match)';}).join(', ') : 'None';
+  var paused = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Paused'||k.status==='Removed';}).map(function(k){return '"'+k.text+'" — '+k.notes;}).join('\n') : 'None';
+  var negList = camp.negatives ? camp.negatives.map(function(n){return n.text+(n.added?' (added)':' (pending)');}).join(', ') : 'None';
+  var days = getDaysSinceReset(camp);
+  var recentChanges = camp.changes ? camp.changes.slice(0,3).map(function(c){return c.date+': '+c.what;}).join('; ') : 'None';
+
+  var prompt = "You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in the KC metro area selling patios, outdoor kitchens, and fire pit spaces with an average project value of $50,000. Their buyers are high-income homeowners in Leawood, Overland Park, Prairie Village, and Johnson County, KS. Conversions come through a Calendly booking page.\n\n"
+    + "CAMPAIGN: " + camp.name + "\n"
+    + "STATUS: Day " + days + " of learning phase recovery (reset March 2, 2026)\n"
+    + "DAILY BUDGET: $" + camp.budget + "\n"
+    + "RECENT CHANGES: " + recentChanges + "\n\n"
+    + "CURRENT KEYWORD INVENTORY:\n"
+    + "Active keywords:\n" + active + "\n\n"
+    + "Testing keywords: " + testing + "\n\n"
+    + "Paused/Removed keywords:\n" + paused + "\n\n"
+    + "Negative keywords: " + negList + "\n\n"
+    + "Based on this full picture, provide a keyword strategy recommendation that covers:\n"
+    + "1. KEEP — which active keywords to protect and why\n"
+    + "2. CUT OR PAUSE — any active keywords that are likely wasting budget at the $50K job value level\n"
+    + "3. ADD — 5-8 specific keywords to test next, with recommended match type and the intent behind each\n"
+    + "4. MATCH TYPE STRATEGY — given the $145/day budget and $50K average job, should KCH be running more Exact or Phrase match right now and why\n\n"
+    + "Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type. Not generic advice — this is a niche, high-ticket local business.";
+
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1200, messages:[{role:'user', content:prompt}]})
+    });
+    var data = await resp.json();
+    var text = data.content && data.content[0] ? data.content[0].text : 'No response.';
+    var formatted = text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g,'<br><br>')
+      .replace(/\n/g,'<br>');
+    var outDiv = document.createElement('div');
+    outDiv.style.cssText = 'padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);';
+    outDiv.innerHTML = formatted;
+    var regenDiv = document.createElement('div');
+    regenDiv.style.cssText = 'margin-top:10px;text-align:right;';
+    var regenBtn = document.createElement('button');
+    regenBtn.className = 'btn btn-ghost';
+    regenBtn.style.fontSize = '11px';
+    regenBtn.textContent = 'Regenerate';
+    regenBtn.addEventListener('click', function(){ btn.style.display='block'; output.style.display='none'; });
+    regenDiv.appendChild(regenBtn);
+    output.innerHTML = '';
+    output.appendChild(outDiv);
+    output.appendChild(regenDiv);
+    output.style.display = 'block';
+  } catch(e) {
+    output.innerHTML = '<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not generate recommendation. Check your connection and try again.</div>';
+    output.style.display = 'block';
+    btn.style.display = 'block';
+  }
+  loading.style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+// AI NEGATIVE KEYWORD RECOMMENDATIONS
+// ══════════════════════════════════════════
+async function getNegRec(){
+  var camp = getCamp(activeCampId);
+  var btn = document.getElementById('neg-ai-btn');
+  var loading = document.getElementById('neg-ai-loading');
+  var output = document.getElementById('neg-ai-output');
+  btn.style.display='none'; loading.style.display='block'; output.style.display='none';
+
+  var currentNegs = camp.negatives ? camp.negatives.map(function(n){return n.text;}).join(', ') : 'None';
+  var activeKWs = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Active';}).map(function(k){return '"'+k.text+'" ('+k.match+')';}).join(', ') : 'None logged';
+  var days = getDaysSinceReset(camp);
+
+  var prompt = "You are a Google Ads negative keyword specialist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. They sell custom patios, outdoor kitchens, and fire pit spaces. Average project value: $50,000. Buyers are high-income homeowners in Leawood, Overland Park, Prairie Village, Johnson County. $145/day budget. Currently Day " + days + " of a learning phase recovery.\n\n"
+    + "ACTIVE KEYWORDS: " + activeKWs + "\n\n"
+    + "CURRENT NEGATIVE KEYWORD LIST:\n" + currentNegs + "\n\n"
+    + "Your job is to identify the GAPS in their negative keyword coverage. Given their active keywords and the nature of a $50K hardscape business, what search queries are they likely showing up for that will never convert — and are not already blocked?\n\n"
+    + "Think about:\n"
+    + "- DIY and how-to intent queries\n"
+    + "- Price-shopping / cheap / budget queries\n"
+    + "- Commercial / contractor job seekers (not homeowners)\n"
+    + "- Wrong geography (outside Johnson County)\n"
+    + "- Wrong product category (concrete, deck, fence, etc.)\n"
+    + "- Informational research queries with no buying intent\n"
+    + "- Competitor or brand name queries\n\n"
+    + "Provide:\n"
+    + "1. TOP PRIORITY negatives to add immediately (likely causing wasted spend right now)\n"
+    + "2. SECONDARY negatives to add soon\n"
+    + "3. One sentence explaining the biggest gap in their current negative list\n\n"
+    + "Give specific keyword phrases, not categories. These should be real searches a non-buyer would type that could trigger their hardscape ads.";
+
+  try {
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user', content:prompt}]})
+    });
+    var data = await resp.json();
+    var text = data.content && data.content[0] ? data.content[0].text : 'No response.';
+    var formatted = text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g,'<br><br>')
+      .replace(/\n/g,'<br>');
+    var outDiv2 = document.createElement('div');
+    outDiv2.style.cssText = 'padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);';
+    outDiv2.innerHTML = formatted;
+    var footDiv = document.createElement('div');
+    footDiv.style.cssText = 'margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;';
+    var hint = document.createElement('span');
+    hint.style.cssText = 'font-size:11px;color:var(--muted);';
+    hint.textContent = 'Review these and add the ones that apply using the form above.';
+    var regenBtn2 = document.createElement('button');
+    regenBtn2.className = 'btn btn-ghost';
+    regenBtn2.style.fontSize = '11px';
+    regenBtn2.textContent = 'Regenerate';
+    regenBtn2.addEventListener('click', function(){ btn.style.display='block'; output.style.display='none'; });
+    footDiv.appendChild(hint);
+    footDiv.appendChild(regenBtn2);
+    output.innerHTML = '';
+    output.appendChild(outDiv2);
+    output.appendChild(footDiv);
+    output.style.display = 'block';
+  } catch(e) {
+    output.innerHTML = '<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not generate recommendation. Check your connection and try again.</div>';
+    output.style.display = 'block';
+    btn.style.display = 'block';
+  }
+  loading.style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+// SEASONALITY INIT
+// ══════════════════════════════════════════
+
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+
+
+// ── START ────────────────────────────────
+showHome();
+</script>
+</body>
+</html>
