@@ -879,7 +879,15 @@ function renderCampaign(camp) {
         // Re-render data-driven tabs on every open
         var c = getCamp(activeCampId);
         if(!c) return;
-        if(tabId === 'performance'){ renderPerfLog(c); setTimeout(function(){ wireAllAI(c); getPerfAI(); }, 80); }
+        if(tabId === 'performance'){
+          renderPerfLog(c);
+          loadAnalysisFromSB(c.id, 'perf').then(function(){
+            setTimeout(function(){ wireAllAI(c);
+              var out = document.getElementById('perf-ai-output');
+              if(!out || out.innerHTML.trim() === '') getPerfAI();
+            }, 80);
+          });
+        }
         if(tabId === 'checklist')  { initChecklist(c); }
         if(tabId === 'keywords')   { renderKW(c); wireKWButtons(c); }
         if(tabId === 'changes')    { renderCL(c); wireCLButtons(c); }
@@ -1835,17 +1843,44 @@ function renderPerfLog(camp){
 }
 
 
-function saveAnalysis(campId, type, text){
+async function saveAnalysis(campId, type, text){
   var key = 'ai_history_' + campId + '_' + type;
+  // Load existing history
   var history = [];
   try { history = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){}
   var date = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   history.unshift({ date: date, text: text });
-  if(history.length > 4) history = history.slice(0, 4);
+  if(history.length > 8) history = history.slice(0, 8);
+  // Save to localStorage immediately
   localStorage.setItem(key, JSON.stringify(history));
+  // Sync to Supabase in background
+  try {
+    await sbUpsert('ai_memory', {
+      id: key,
+      camp_id: campId,
+      mem_type: type,
+      history: JSON.stringify(history),
+      updated_at: new Date().toISOString()
+    });
+  } catch(e){ /* Supabase unavailable, localStorage copy is fine */ }
+}
+
+async function loadAnalysisFromSB(campId, type){
+  var key = 'ai_history_' + campId + '_' + type;
+  try {
+    var rows = await sbGet('ai_memory', {id: key});
+    if(rows && rows.length > 0){
+      var history = JSON.parse(rows[0].history || '[]');
+      localStorage.setItem(key, JSON.stringify(history));
+      return history;
+    }
+  } catch(e){}
+  // Fall back to localStorage
+  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){ return []; }
 }
 
 function getAnalysisHistory(campId, type){
+  // Sync read from localStorage (Supabase loaded async at tab open)
   var key = 'ai_history_' + campId + '_' + type;
   try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){ return []; }
 }
