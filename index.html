@@ -606,28 +606,31 @@ async function loadFromSB(){
 }
 
 async function initFromSB(){
-  // Show loading indicator
-  var grid = document.getElementById('campaign-grid');
-  if(grid) grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">Loading campaigns...</div>';
-  
-  var sbCamps = await loadFromSB();
-  if(sbCamps && sbCamps.length > 0){
-    campaigns = sbCamps;
-    // Ensure default KCH campaign exists
+  // Always load from localStorage first so page renders immediately
+  var local = load('campaigns', null);
+  if(local && local.length > 0){
+    campaigns = local;
     var hasKCH = campaigns.some(function(c){ return c.id === 'kch-search-001'; });
     if(!hasKCH) campaigns.unshift(DEFAULT_CAMPAIGN);
-    // Save to localStorage as cache
-    localStorage.setItem('kch_campaigns', JSON.stringify(campaigns));
-  } else {
-    // No Supabase data — check localStorage, then default
-    var local = load('campaigns', null);
-    if(local && local.length > 0){
-      campaigns = local;
-      // Push local data up to Supabase
-      await syncCampaignsToSB(campaigns);
-    }
   }
+  // Render immediately with local data
   renderHome();
+  // Then try Supabase in background and refresh if we get data
+  try {
+    var sbCamps = await loadFromSB();
+    if(sbCamps && sbCamps.length > 0){
+      campaigns = sbCamps;
+      var hasKCH2 = campaigns.some(function(c){ return c.id === 'kch-search-001'; });
+      if(!hasKCH2) campaigns.unshift(DEFAULT_CAMPAIGN);
+      localStorage.setItem('kch_campaigns', JSON.stringify(campaigns));
+      renderHome(); // refresh with cloud data
+    } else if(campaigns.length > 0){
+      syncCampaignsToSB(campaigns); // push local up to Supabase
+    }
+  } catch(e){
+    // Supabase unavailable — already rendered with local data, nothing to do
+    console.warn('Supabase sync failed:', e);
+  }
 }
 
 
@@ -980,19 +983,11 @@ document.getElementById('btn-add-campaign').addEventListener('click', function()
 // ── CONTENT FUNCTIONS ────────────────────
 function buildScreenDOM(id, camp, container){
   container.innerHTML = '';
-  // All build functions now write directly into container
-  switch(id){
-    case 'input':       buildInput(camp, container); break;
-    case 'performance': buildPerformance(camp, container); break;
-    case 'recovery':    buildRecovery(camp, container); break;
-    case 'checklist':   buildChecklist(camp, container); break;
-    case 'keywords':    buildKeywords(camp, container); break;
-    case 'changes':     buildChanges(camp, container); break;
-    case 'season':      buildSeason(camp, container); break;
-    case 'signals':     buildSignals(camp, container); break;
-    default:            container.innerHTML = buildScreen(id, camp);
+  if(id === 'input'){
+    buildInput(camp, container);
+  } else {
+    container.innerHTML = buildScreen(id, camp);
   }
-  wireAllAI(camp);
 }
 
 function buildScreen(id, camp){
@@ -1237,9 +1232,8 @@ function renderDILog(camp){
   card.appendChild(legend);
   el.appendChild(card);
 }
-function buildPerformance(camp, container){
-  var el = container || document.createElement('div');
-  el.innerHTML = '';
+function buildPerformance(camp){
+  var el = document.createElement('div');
 
   // ── SCORE CHART (always visible, filled by renderPerfLog)
   var chartWrap = document.createElement('div');
@@ -1742,78 +1736,78 @@ async function getPerfAI(){
 }
 
 
-function buildRecovery(camp, container){
-  var _html = ''
+function buildRecovery(camp){
+  return ''
 
   // Phase status card
-  +'<div class="card">'
-  +'<div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);">'
-  +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">'
-  +'<div>'
-  +'<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Campaign Status</div>'
-  +'<div style="font-size:18px;font-weight:800;color:var(--stone);">Day <span id="day-count">1</span> of 14 — <span id="phase-name-main">Reset</span></div>'
-  +'<div id="phase-status-sub" style="font-size:12px;color:var(--muted);margin-top:3px;">Reset on March 2 · Switched to Maximize Conversions · Target CPA removed</div>'
-  +'</div>'
-  +'<div id="phase-badge" style="background:#fee2e2;color:#9b1c1c;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;text-align:center;min-width:100px;">'
-  +'<div style="font-size:18px;font-weight:800;" id="days-left-val">—</div>'
-  +'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-top:2px;">Days to Day 14</div>'
-  +'</div></div></div>'
+  _html +='<div class="card">';
+  _html +='<div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);">';
+  _html +='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">';
+  _html +='<div>';
+  _html +='<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Campaign Status</div>';
+  _html +='<div style="font-size:18px;font-weight:800;color:var(--stone);">Day <span id="day-count">1</span> of 14 — <span id="phase-name-main">Reset</span></div>';
+  _html +='<div id="phase-status-sub" style="font-size:12px;color:var(--muted);margin-top:3px;">Reset on March 2 · Switched to Maximize Conversions · Target CPA removed</div>';
+  _html +='</div>';
+  _html +='<div id="phase-badge" style="background:#fee2e2;color:#9b1c1c;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;text-align:center;min-width:100px;">';
+  _html +='<div style="font-size:18px;font-weight:800;" id="days-left-val">—</div>';
+  _html +='<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-top:2px;">Days to Day 14</div>';
+  _html +='</div></div></div>';
 
-  +'<div style="padding:16px 20px 18px;">'
-  +'<div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;margin-bottom:6px;">'
-  +'<div style="position:absolute;top:14px;left:20px;right:20px;height:2px;background:var(--border);z-index:0;"></div>'
-  +'<div id="phase-progress-line" style="position:absolute;top:14px;left:20px;height:2px;background:var(--gold);z-index:1;transition:width .4s;width:0%;"></div>'
-  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot active" id="pd0">1</div><div class="plbl active" id="pl0">Reset</div></div>'
-  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd1">2</div><div class="plbl" id="pl1">Warming<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 3–5</div></div></div>'
-  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd2">3</div><div class="plbl" id="pl2">Learning<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 5–10</div></div></div>'
-  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd3">4</div><div class="plbl" id="pl3">Stabilizing<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 10–14</div></div></div>'
-  +'<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd4">5</div><div class="plbl" id="pl4">Recovered<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 14+</div></div></div>'
-  +'</div>'
-  +'<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">'
-  +'<button class="btn btn-gold" onclick="advPhase()">Mark Next Phase Complete</button>'
-  +'<button class="btn btn-ghost" onclick="resetPhase()">Reset Phase</button>'
-  +'</div></div></div>'
+  _html +='<div style="padding:16px 20px 18px;">';
+  _html +='<div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;margin-bottom:6px;">';
+  _html +='<div style="position:absolute;top:14px;left:20px;right:20px;height:2px;background:var(--border);z-index:0;"></div>';
+  _html +='<div id="phase-progress-line" style="position:absolute;top:14px;left:20px;height:2px;background:var(--gold);z-index:1;transition:width .4s;width:0%;"></div>';
+  _html +='<div class="pstep" style="position:relative;z-index:2;"><div class="pdot active" id="pd0">1</div><div class="plbl active" id="pl0">Reset</div></div>';
+  _html +='<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd1">2</div><div class="plbl" id="pl1">Warming<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 3–5</div></div></div>';
+  _html +='<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd2">3</div><div class="plbl" id="pl2">Learning<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 5–10</div></div></div>';
+  _html +='<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd3">4</div><div class="plbl" id="pl3">Stabilizing<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 10–14</div></div></div>';
+  _html +='<div class="pstep" style="position:relative;z-index:2;"><div class="pdot" id="pd4">5</div><div class="plbl" id="pl4">Recovered<div style="font-size:8px;color:var(--muted);font-weight:400;">Day 14+</div></div></div>';
+  _html +='</div>';
+  _html +='<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">';
+  _html +='<button class="btn btn-gold" onclick="advPhase()">Mark Next Phase Complete</button>';
+  _html +='<button class="btn btn-ghost" onclick="resetPhase()">Reset Phase</button>';
+  _html +='</div></div></div>';
 
   // Daily log
-  +'<div class="card"><div class="card-head"><h3>Daily Recovery Log</h3><p>Enter each day\'s numbers from Google Ads. Reset date is pre-filled to March 2.</p></div>'
-  +'<div class="card-body">'
-  +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;">'
-  +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px;">Log Today\'s Numbers</div>'
-  +'<div class="input-grid" style="margin-bottom:10px;">'
-  +'<div class="mf"><label>Date</label><input type="date" id="log-date" style="font-size:13px;font-weight:500;font-family:inherit;"></div>'
-  +'<div class="mf"><label>Impressions</label><input type="number" id="log-impr" placeholder="e.g. 12" min="0"></div>'
-  +'<div class="mf"><label>Clicks</label><input type="number" id="log-clicks" placeholder="e.g. 2" min="0"></div>'
-  +'<div class="mf"><label>Spend</label><div class="sym" data-s="$"><input type="number" id="log-spend" placeholder="e.g. 18" min="0" step="0.01"></div></div>'
-  +'<div class="mf"><label>Conversions</label><input type="number" id="log-conv" placeholder="e.g. 0" min="0"></div>'
-  +'<div class="mf" style="display:flex;align-items:flex-end;"><button class="btn btn-gold" style="width:100%;justify-content:center;" onclick="addLogEntry()">Add Entry</button></div>'
-  +'</div>'
-  +'<div id="log-msg" style="font-size:11px;color:var(--green);font-weight:600;display:none;">Entry saved.</div>'
-  +'</div>'
-  +'<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;" id="log-table">'
-  +'<thead><tr style="background:var(--surface);">'
-  +'<th style="text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Date</th>'
-  +'<th style="text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Day</th>'
-  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Impr.</th>'
-  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Clicks</th>'
-  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Spend</th>'
-  +'<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Conv.</th>'
-  +'<th style="text-align:center;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Signal</th>'
-  +'<th style="padding:8px 6px;border-bottom:2px solid var(--border);"></th>'
-  +'</tr></thead>'
-  +'<tbody id="log-tbody"><tr><td colspan="8" style="padding:20px 10px;text-align:center;color:var(--muted);font-size:12px;font-style:italic;">No entries yet.</td></tr></tbody>'
-  +'</table></div>'
-  +'<div id="log-totals" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">'
-  +'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Running Totals Since Reset</div>'
-  +'<div class="tile-grid">'
-  +'<div class="tile neu"><div class="tile-lbl">Total Spend</div><div class="tile-val" id="tot-spend">—</div><div class="tile-sub">Across all logged days</div></div>'
-  +'<div class="tile neu" id="tot-conv-tile"><div class="tile-lbl">Total Conversions</div><div class="tile-val" id="tot-conv">—</div><div class="tile-sub">Need 5 before adding Target CPA</div></div>'
-  +'<div class="tile neu" id="tot-impr-tile"><div class="tile-lbl">Avg. Daily Impressions</div><div class="tile-val" id="tot-impr">—</div><div class="tile-sub">Target: 30–50 / day</div></div>'
-  +'<div class="tile neu"><div class="tile-lbl">Cost Per Conversion</div><div class="tile-val" id="tot-cpl">—</div><div class="tile-sub">Historical CPL reference</div></div>'
-  +'</div></div></div></div>'
+  _html +='<div class="card"><div class="card-head"><h3>Daily Recovery Log</h3><p>Enter each day\'s numbers from Google Ads. Reset date is pre-filled to March 2.</p></div>';
+  _html +='<div class="card-body">';
+  _html +='<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;">';
+  _html +='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px;">Log Today\'s Numbers</div>';
+  _html +='<div class="input-grid" style="margin-bottom:10px;">';
+  _html +='<div class="mf"><label>Date</label><input type="date" id="log-date" style="font-size:13px;font-weight:500;font-family:inherit;"></div>';
+  _html +='<div class="mf"><label>Impressions</label><input type="number" id="log-impr" placeholder="e.g. 12" min="0"></div>';
+  _html +='<div class="mf"><label>Clicks</label><input type="number" id="log-clicks" placeholder="e.g. 2" min="0"></div>';
+  _html +='<div class="mf"><label>Spend</label><div class="sym" data-s="$"><input type="number" id="log-spend" placeholder="e.g. 18" min="0" step="0.01"></div></div>';
+  _html +='<div class="mf"><label>Conversions</label><input type="number" id="log-conv" placeholder="e.g. 0" min="0"></div>';
+  _html +='<div class="mf" style="display:flex;align-items:flex-end;"><button class="btn btn-gold" style="width:100%;justify-content:center;" onclick="addLogEntry()">Add Entry</button></div>';
+  _html +='</div>';
+  _html +='<div id="log-msg" style="font-size:11px;color:var(--green);font-weight:600;display:none;">Entry saved.</div>';
+  _html +='</div>';
+  _html +='<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;" id="log-table">';
+  _html +='<thead><tr style="background:var(--surface);">';
+  _html +='<th style="text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Date</th>';
+  _html +='<th style="text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Day</th>';
+  _html +='<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Impr.</th>';
+  _html +='<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Clicks</th>';
+  _html +='<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Spend</th>';
+  _html +='<th style="text-align:right;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Conv.</th>';
+  _html +='<th style="text-align:center;padding:8px 10px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);">Signal</th>';
+  _html +='<th style="padding:8px 6px;border-bottom:2px solid var(--border);"></th>';
+  _html +='</tr></thead>';
+  _html +='<tbody id="log-tbody"><tr><td colspan="8" style="padding:20px 10px;text-align:center;color:var(--muted);font-size:12px;font-style:italic;">No entries yet.</td></tr></tbody>';
+  _html +='</table></div>';
+  _html +='<div id="log-totals" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">';
+  _html +='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;">Running Totals Since Reset</div>';
+  _html +='<div class="tile-grid">';
+  _html +='<div class="tile neu"><div class="tile-lbl">Total Spend</div><div class="tile-val" id="tot-spend">—</div><div class="tile-sub">Across all logged days</div></div>';
+  _html +='<div class="tile neu" id="tot-conv-tile"><div class="tile-lbl">Total Conversions</div><div class="tile-val" id="tot-conv">—</div><div class="tile-sub">Need 5 before adding Target CPA</div></div>';
+  _html +='<div class="tile neu" id="tot-impr-tile"><div class="tile-lbl">Avg. Daily Impressions</div><div class="tile-val" id="tot-impr">—</div><div class="tile-sub">Target: 30–50 / day</div></div>';
+  _html +='<div class="tile neu"><div class="tile-lbl">Cost Per Conversion</div><div class="tile-val" id="tot-cpl">—</div><div class="tile-sub">Historical CPL reference</div></div>';
+  _html +='</div></div></div></div>';
 
   // Action plan
-  +'<div class="slbl">Recovery Action Plan — In Order</div>'
-  +'<div class="card"><ul style="list-style:none;margin:0;padding:0;" id="rstep-list">'
+  _html +='<div class="slbl">Recovery Action Plan — In Order</div>';
+  _html +='<div class="card"><ul style="list-style:none;margin:0;padding:0;" id="rstep-list">';
   +[
     ['Switch to Maximize Conversions and remove Target CPA','Completed March 2. This was the correct move — Maximize Conversions lets Google explore broadly while it relearns without the constraint of a CPA target that is no longer calibrated.','<strong>Done.</strong> Move to step 2.', true],
     ['Confirm your /thankyou conversion is firing correctly','Go to Google Ads → Tools → Conversions → click your /thankyou page conversion. Status should show "Recording conversions." If no recent activity despite Calendly bookings, the tag may be broken.','<strong>How to verify:</strong> Book a test Calendly appointment yourself and check within 24 hours whether a conversion appears.', false],
@@ -1824,14 +1818,14 @@ function buildRecovery(camp, container){
     ['Log your first post-reset Calendly booking','When you receive your first Calendly booking attributed to Google Ads after the reset, mark this step complete.','<strong>Perspective:</strong> One genuine booking is significant revenue. The reset was a setback measured in days, not dollars.', false]
   ].map(function(s,i){
     return '<li class="rstep'+(s[3]?' done':'')+'" onclick="togR(this)">'
-      +'<div class="rnum"><span>'+( i+1)+'</span></div>'
-      +'<div class="ri"><div class="rt">'+s[0]+'</div><div class="rd">'+s[1]+'</div>'
-      +'<div class="rnote">'+s[2]+'</div></div></li>';
+      _html +='<div class="rnum"><span>'+( i+1)+'</span></div>';
+      _html +='<div class="ri"><div class="rt">'+s[0]+'</div><div class="rd">'+s[1]+'</div>';
+      _html +='<div class="rnote">'+s[2]+'</div></div></li>';;
   }).join('')
-  +'</ul></div>'
+  _html +='</ul></div>';
 
   // Don't do list
-  +'<div class="card"><div class="card-head"><h3>What Not To Do During Recovery</h3><p>These mistakes significantly extend the learning phase.</p></div><div>'
+  _html +='<div class="card"><div class="card-head"><h3>What Not To Do During Recovery</h3><p>These mistakes significantly extend the learning phase.</p></div><div>';
   +[
     ['Change your daily budget','Even an increase can re-trigger the learning phase. Wait until "Learning" clears from your campaign status column.'],
     ['Add or remove keywords','Any significant keyword change extends learning. Keep your list untouched for the full 14 days.'],
@@ -1840,15 +1834,13 @@ function buildRecovery(camp, container){
   ].map(function(d){
     return '<div class="dont-row"><div class="dont-icon">&#10005;</div><div class="dont-text"><strong>'+d[0]+'</strong><p>'+d[1]+'</p></div></div>';
   }).join('')
-  +'<div class="dont-row" style="border-bottom:none;"><div class="dont-icon" style="color:#d97706;">!</div><div class="dont-text"><strong>Judge performance by impressions in days 1–7</strong><p>Impressions are erratic while the algorithm tests different auction strategies. Conversions are the only signal that matters during this window.</p></div></div>'
-  +'</div></div>';
-  if(container){ container.innerHTML = _html; }
+  _html +='<div class="dont-row" style="border-bottom:none;"><div class="dont-icon" style="color:#d97706;">!</div><div class="dont-text"><strong>Judge performance by impressions in days 1–7</strong><p>Impressions are erratic while the algorithm tests different auction strategies. Conversions are the only signal that matters during this window.</p></div></div>';
+  _html +='</div></div>';;
 
 }
 
-function buildChecklist(camp, container){
-  var el = container || document.createElement('div');
-  el.innerHTML = '';
+function buildChecklist(camp){
+  var el = document.createElement('div');
 
   // Done banner
   var banner = document.createElement('div');
@@ -2016,7 +2008,7 @@ function buildNegatives(camp){
 }
 
 // ── SEASON ────────────────────────────────
-function buildSeason(camp, container){
+function buildSeason(){
   var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var seas=[{s:'cold',l:'Off',h:10},{s:'cold',l:'Off',h:10},{s:'warm',l:'Ramp',h:55},{s:'hot',l:'Peak',h:100},{s:'hot',l:'Peak',h:100},{s:'hot',l:'Peak',h:95},{s:'hot',l:'Peak',h:90},{s:'hot',l:'Peak',h:85},{s:'warm',l:'Taper',h:60},{s:'warm',l:'Wind Down',h:35},{s:'cold',l:'Low',h:15},{s:'cold',l:'Off',h:10}];
   var curMo=new Date().getMonth();
@@ -2037,7 +2029,7 @@ function buildSeason(camp, container){
 }
 
 // ── SIGNALS ───────────────────────────────
-function buildSignals(camp, container){
+function buildSignals(){
   return '<div class="alert alert-neutral"><strong>These warning signs are specific to low-volume, high-ticket local service businesses.</strong> Generic Google Ads advice is calibrated for e-commerce. Kansas City Hardscapes operates completely differently.</div>'
   +'<div class="slbl">Signals Your Ads Are Working Against You</div>'
   +'<div class="card">'
@@ -2313,7 +2305,7 @@ async function generateTodos(){
   var perfSummary = 'No performance data logged yet.';
   if(camp.perfLog && camp.perfLog.length > 0){
     var recent = camp.perfLog.slice(-7);
-    var ts=0,tl=0;
+    var ts=0, tl=0;
     recent.forEach(function(e){ ts+=e.spend; tl+=e.leads; });
     perfSummary = 'Last '+recent.length+' days: $'+ts.toFixed(0)+' spend, '+tl+' leads, avg CPL '+(tl>0?'$'+Math.round(ts/tl):'N/A');
   }
@@ -2323,7 +2315,6 @@ async function generateTodos(){
   }).join('\n') || 'No recent changes.';
 
   var pendingNegs = (camp.negatives||[]).filter(function(n){ return !n.added; }).map(function(n){ return n.text; }).join(', ') || 'None';
-
   var histCtx = buildHistoryContext(camp.id, 'todos', 'weekly to-do analyses');
 
   var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
@@ -2332,7 +2323,7 @@ async function generateTodos(){
     + 'PENDING NEGATIVES: '+pendingNegs+'\n\n'
     + 'Generate a focused to-do list for this week. Return ONLY valid JSON array, no markdown, no explanation:\n'
     + '[{"tag":"Priority","title":"...","desc":"...","note":"..."},...]\n\n'
-    + 'Rules: 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Each must be specific to KCH right now — not generic advice.'
+    + 'Rules: 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Each must be specific to KCH right now.'
     + histCtx;
 
   try {
@@ -2354,137 +2345,6 @@ async function generateTodos(){
   }
 }
 
-
-function wireKWButtons(camp){
-  // Sub-tab switching
-  var kwSubBtn  = document.getElementById('kw-subtab-btn');
-  var negSubBtn = document.getElementById('neg-subtab-btn');
-  var baseStyle   = 'padding:10px 20px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;color:var(--muted);';
-  var activeStyle = 'color:var(--stone);border-bottom-color:var(--gold);';
-  if(kwSubBtn && negSubBtn){
-    var kwPane  = kwSubBtn.parentElement.nextElementSibling;
-    var negPane = negSubBtn.parentElement.nextElementSibling
-                    ? negSubBtn.parentElement.nextElementSibling.nextElementSibling : null;
-    // Better: find by scanning siblings
-    var screens = document.querySelectorAll('#scr-keywords > div');
-    // kwPane is first div after subBar, negPane is second
-    var subBar = document.getElementById('kw-subtab-btn').parentElement;
-    var panes  = [];
-    var sib = subBar.nextElementSibling;
-    while(sib){ panes.push(sib); sib = sib.nextElementSibling; }
-    var kwP  = panes[0];
-    var negP = panes[1];
-    if(kwP && negP){
-      kwSubBtn.addEventListener('click', function(){
-        kwP.style.display  = 'block';
-        negP.style.display = 'none';
-        kwSubBtn.style.cssText  = baseStyle + activeStyle;
-        negSubBtn.style.cssText = baseStyle;
-      });
-      negSubBtn.addEventListener('click', function(){
-        kwP.style.display  = 'none';
-        negP.style.display = 'block';
-        negSubBtn.style.cssText = baseStyle + activeStyle;
-        kwSubBtn.style.cssText  = baseStyle;
-      });
-    }
-  }
-
-  // Add keyword button
-  var addBtn = document.getElementById('kw-add-btn');
-  if(addBtn) addBtn.addEventListener('click', addKW);
-
-  // Filter buttons
-  var filters = document.querySelectorAll('#kw-filters .kw-filter-btn');
-  filters.forEach(function(btn){
-    btn.addEventListener('click', function(){
-      filterKW(btn.getAttribute('data-filter'), btn);
-    });
-  });
-
-  // AI keyword button
-  var aiBtn = document.getElementById('kw-ai-btn');
-  if(aiBtn) aiBtn.addEventListener('click', getKWRec);
-
-  // Negatives buttons
-  var negAdd  = document.getElementById('neg-add-btn');
-  var negCopy = document.getElementById('neg-copy-btn');
-  var negAI   = document.getElementById('neg-ai-btn');
-  var negIn   = document.getElementById('neg-input');
-  if(negAdd)  negAdd.addEventListener('click', addNeg);
-  if(negCopy) negCopy.addEventListener('click', copyNegs);
-  if(negAI)   negAI.addEventListener('click', getNegRec);
-  if(negIn)   negIn.addEventListener('keydown', function(e){ if(e.key==='Enter') addNeg(); });
-}
-
-function addKW(){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var text=document.getElementById('kw-text').value.trim();
-  if(!text){alert('Please enter a keyword.');return;}
-  if(!camp.keywords)camp.keywords=[];
-  camp.keywords.push({id:Date.now(),text:text,match:document.getElementById('kw-match').value,status:document.getElementById('kw-status').value,notes:document.getElementById('kw-notes').value.trim(),added:new Date().toISOString().split('T')[0]});
-  save('campaigns',campaigns);
-  document.getElementById('kw-text').value='';document.getElementById('kw-notes').value='';
-  var m=document.getElementById('kw-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
-  renderKW(camp);
-}
-function updateKWStatus(id,val){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var kw=camp.keywords.find(function(k){return k.id===id;});
-  if(kw){kw.status=val;save('campaigns',campaigns);renderKW(camp);}
-}
-function updateKWNotes(id,val){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var kw=camp.keywords.find(function(k){return k.id===id;});
-  if(kw){kw.notes=val;save('campaigns',campaigns);}
-}
-function removeKW(id){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  camp.keywords=camp.keywords.filter(function(k){return k.id!==id;});
-  save('campaigns',campaigns);renderKW(camp);
-}
-function filterKW(f,btn){
-  var camp=getCamp(activeCampId);if(camp){camp.kwFilter=f;save('campaigns',campaigns);}
-  document.querySelectorAll('.kw-filter-btn').forEach(function(b){b.classList.remove('kw-f-active');});
-  btn.classList.add('kw-f-active');
-  renderKW(camp);
-}
-function renderKW(camp){
-  var list=document.getElementById('kw-list');if(!list)return;
-  if(!camp||!camp.keywords||camp.keywords.length===0){
-    list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords yet. Add your first keyword above.</div>';return;
-  }
-  var filter=camp.kwFilter||'all';
-  var filtered=filter==='all'?camp.keywords:camp.keywords.filter(function(k){return k.status===filter;});
-  if(filtered.length===0){
-    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords with status "'+filter+'".</div>';return;
-  }
-  list.innerHTML=filtered.map(function(kw){
-    var sc=kwStatusColors[kw.status]||{bg:'#f5f3ef',border:'var(--border)',text:'var(--muted)'};
-    var mc=kwMatchColors[kw.match]||{bg:'#f5f3ef',color:'var(--muted)'};
-    var opts=['Active','Testing','Paused','Removed'].map(function(s){return'<option value="'+s+'"'+(kw.status===s?' selected':'')+'>'+s+'</option>';}).join('');
-    return'<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">'
-      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
-      +'<div style="flex:1;min-width:0;">'
-      +'<div style="font-size:14px;font-weight:700;color:var(--stone);margin-bottom:6px;">'+kw.text+'</div>'
-      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+mc.bg+';color:'+mc.color+';">'+kw.match+' Match</span>'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+sc.bg+';color:'+sc.text+';border:1px solid '+sc.border+';">'+kw.status+'</span>'
-      +'<span style="font-size:10px;color:var(--muted);">Added '+kw.added+'</span>'
-      +'</div>'
-      +'<input type="text" value="'+kw.notes.replace(/"/g,'&quot;')+'" placeholder="Add a performance note..." onchange="updateKWNotes('+kw.id+',this.value)" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;color:var(--muted);background:var(--surface);outline:none;">'
-      +'</div>'
-      +'<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
-      +'<select onchange="updateKWStatus('+kw.id+',this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:700;color:var(--stone);background:var(--surface);outline:none;cursor:pointer;">'+opts+'</select>'
-      +'<button onclick="removeKW('+kw.id+')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;">Remove</button>'
-      +'</div></div></div>';
-  }).join('');
-}
-
-// ══════════════════════════════════════════
-// CHANGE LOG
-// ══════════════════════════════════════════
-var catColors={'Bidding Strategy':{bg:'#fce7f3',color:'#9d174d'},'Budget':{bg:'#fffbeb',color:'#78350f'},'Keywords':{bg:'#f0faf5',color:'#155e3e'},'Negative Keywords':{bg:'#f0faf5',color:'#155e3e'},'Ad Copy':{bg:'#eff4ff',color:'#1e3a8a'},'Landing Page':{bg:'#eff4ff',color:'#1e3a8a'},'Targeting':{bg:'#fff5f5',color:'#991b1b'},'Conversion Tracking':{bg:'#fce7f3',color:'#9d174d'},'Ad Schedule':{bg:'#fffbeb',color:'#78350f'},'Other':{bg:'#f5f3ef',color:'var(--muted)'}};
 
 function setChangeDateDefault(){
   var el=document.getElementById('cl-date');if(!el)return;
@@ -2598,55 +2458,6 @@ async function getNegRec(){
 }
 
 
-async function getAIRec(){
-  var camp=getCamp(activeCampId);
-  var clicks=parseFloat(document.getElementById('h-clicks').value)||0;
-  var impr=parseFloat(document.getElementById('h-impr').value)||0;
-  var spend=parseFloat(document.getElementById('h-spend').value)||0;
-  var leads=parseFloat(document.getElementById('h-leads').value)||0;
-  var consultsEl=document.getElementById('h-consults');
-  var consults=consultsEl?parseFloat(consultsEl.value)||0:0;
-  var btn=document.getElementById('ai-rec-btn');
-  var loading=document.getElementById('ai-rec-loading');
-  var output=document.getElementById('ai-rec-output');
-  btn.style.display='none';loading.style.display='block';output.style.display='none';
-  var ctr=impr?(clicks/impr*100).toFixed(1):null;
-  var cpc=clicks?(spend/clicks).toFixed(2):null;
-  var cpl=leads?(spend/leads).toFixed(0):null;
-  var cr=leads?(consults/leads*100).toFixed(0):null;
-  var days=camp?getDaysSinceReset(camp):1;
-  var recentChanges=camp&&camp.changes?camp.changes.slice(0,3).map(function(c){return c.date+': '+c.what;}).join('; '):'None logged';
-  var activeKWs=camp&&camp.keywords?camp.keywords.filter(function(k){return k.status==='Active';}).map(function(k){return'"'+k.text+'" ('+k.match+')';}).join(', '):'None logged';
-  var pendingNegs=camp&&camp.negatives?camp.negatives.filter(function(n){return !n.added;}).map(function(n){return n.text;}).join(', '):'All added';
-  var prompt="You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape company selling backyard living spaces (patios, outdoor kitchens, fire pit areas) with an average project value of $50,000. Leads come in via a Calendly booking page (/thankyou conversion). The business targets high-income homeowners in Leawood, Overland Park, Prairie Village, and Johnson County, KS.\n\nCURRENT CAMPAIGN: "+( camp?camp.name:'KCH Search')+"\nType: "+(camp?typeLabel(camp.type):'Search')+"\n\nCAMPAIGN CONTEXT:\n- Reset on March 2, 2026 after conversion goal change wiped learning data\n- Currently on Day "+days+" of the ~14-day learning phase recovery\n- Bidding strategy: Maximize Conversions (no Target CPA)\n- Recent changes: "+recentChanges+"\n- Active keywords: "+activeKWs+"\n- Negative keywords still pending: "+pendingNegs+"\n\nTHIS WEEK'S PERFORMANCE:\n- Impressions: "+(impr||0)+"\n- Clicks: "+(clicks||0)+"\n- Ad Spend: $"+(spend||0)+"\n- CTR: "+(ctr||'N/A')+"%\n- CPC: $"+(cpc||'N/A')+"\n- Qualified Leads: "+(leads||0)+"\n- Consultations: "+(consults||0)+"\n- CPL: $"+(cpl||'N/A')+"\n- Lead-to-Consultation Rate: "+(cr||'N/A')+"%\n\nProvide a strategic recommendation that is:\n1. Specific to Day "+days+" of the recovery phase\n2. Prioritized — the single most important thing first, then 2-3 supporting actions\n3. Calibrated to $50K average job value\n4. Honest — don't sugarcoat problems but don't catastrophize normal recovery patterns\n5. Written directly to the business owner in plain language\n\nFormat with a clear priority action at the top, then supporting recommendations. Keep it focused and actionable.";
-  try{
-    var resp=await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
-    var data=await resp.json();
-    var text=data.content&&data.content[0]?data.content[0].text:'No response received.';
-    var formatted=text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
-    output.innerHTML='<div style="padding:14px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);">'+formatted+'</div>'
-      +'<div style="margin-top:10px;text-align:right;"><button class="btn btn-ghost" onclick="document.getElementById(\'ai-rec-btn\').style.display=\'block\';document.getElementById(\'ai-rec-output\').style.display=\'none\';" style="font-size:11px;">Regenerate</button></div>';
-    output.style.display='block';
-  }catch(e){
-    output.innerHTML='<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not generate recommendation. Check your connection and try again.</div>';
-    output.style.display='block';btn.style.display='block';
-  }
-  loading.style.display='none';
-}
-
-// ══════════════════════════════════════════
-// CHECKLIST
-// ══════════════════════════════════════════
-
-// ── WEEKLY TO-DO ─────────────────────────
-var DEFAULT_TODOS = [
-  {title:"Pull the Search Terms Report and remove wasteful keywords", detail:"Keywords tab in Google Ads. Look for anything that is not a homeowner ready to spend on a premium project.", tag:"Priority"},
-  {title:"Count qualified Calendly bookings this week", detail:"This is the only metric that moves your business. 1-2 genuine bookings per week is a strong pipeline at your price point.", tag:"Priority"},
-  {title:"Check your cost per lead this week", detail:"At a 30% close rate on premium hardscape jobs, you can justify up to $3,000 per lead and still profit. Under $500 is exceptional.", tag:"Priority"},
-  {title:"Assess lead quality, not just lead count", detail:"Were the people who booked consultations actually serious buyers? Ad copy should pre-qualify with words like premium and from $25K.", tag:"Strategic"},
-  {title:"Verify targeting is hitting the right KC neighborhoods", detail:"Reports then Geographic. You want clicks from Leawood, Overland Park, Prairie Village, Lenexa - not Lawrence or rural Missouri.", tag:"Strategic"},
-  {title:"Log your full pipeline - leads, consults, proposals, closes", detail:"Track the complete funnel, not just ad metrics. One closed job per month from a $1,500 ad spend is a 33x return.", tag:"Growth"}
-];
 
 function getChicagoWeekKey(){
   var now = new Date();
@@ -2657,465 +2468,6 @@ function getChicagoWeekKey(){
   return monday.toISOString().split('T')[0];
 }
 
-function initChecklist(camp){
-  // Wire buttons
-  var saveBtn  = document.getElementById('save-notes-btn');
-  var resetBtn = document.getElementById('reset-week-btn');
-  if(saveBtn)  saveBtn.addEventListener('click', saveNotes);
-  if(resetBtn) resetBtn.addEventListener('click', resetWeek);
-
-  // Restore notes
-  var notes = document.getElementById('my-notes');
-  if(notes && camp) notes.value = camp.pipelineNotes || '';
-
-  // Check if we need to auto-generate (Monday and not yet generated this week)
-  var weekKey = getChicagoWeekKey();
-  var now = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Chicago'}));
-  var isMonday = now.getDay() === 1;
-
-  if(isMonday && camp.aiTodosWeek !== weekKey && (camp.perfLog && camp.perfLog.length > 0)){
-    generateTodos();
-  } else {
-    renderTodos(camp);
-  }
-}
-
-function renderTodos(camp){
-  var container = document.getElementById('ai-todo-list');
-  if(!container) return;
-  container.innerHTML = '';
-
-  var todos = (camp && camp.aiTodos && camp.aiTodos.length > 0) ? camp.aiTodos : DEFAULT_TODOS;
-  var isAI  = camp && camp.aiTodos && camp.aiTodos.length > 0;
-
-  if(isAI){
-    var weekKey = camp.aiTodosWeek;
-    var label = document.createElement('div');
-    label.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;text-align:right;';
-    label.textContent = 'AI-generated for week of ' + new Date(weekKey + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    container.appendChild(label);
-  } else {
-    var label = document.createElement('div');
-    label.className = 'alert alert-neutral';
-    label.style.marginBottom = '12px';
-    label.innerHTML = '<strong>Showing default tasks.</strong> Log some daily performance data then hit Generate to get a personalized list.';
-    container.appendChild(label);
-  }
-
-  // Group by tag
-  var groups = {};
-  todos.forEach(function(t){
-    if(!groups[t.tag]) groups[t.tag] = [];
-    groups[t.tag].push(t);
-  });
-
-  var tagOrder = ['Priority','Strategic','Growth'];
-  var tagColors = {Priority:'tag-priority', Strategic:'tag-strategic', Growth:'tag-growth'};
-
-  tagOrder.forEach(function(tag){
-    if(!groups[tag] || groups[tag].length === 0) return;
-
-    var lbl = document.createElement('div');
-    lbl.className = 'slbl';
-    lbl.textContent = tag + (tag === 'Priority' ? ' — Do These First' : tag === 'Strategic' ? ' — Weekly Review' : ' — When You Have Time');
-    container.appendChild(lbl);
-
-    var card = document.createElement('div');
-    card.className = 'card';
-    var ul = document.createElement('ul');
-    ul.className = 'cl';
-
-    groups[tag].forEach(function(t, i){
-      var li = document.createElement('li');
-      li.addEventListener('click', function(){ togCL(li); });
-      li.innerHTML = '<div class="chk"></div>'
-        + '<div class="ci"><div class="ct">' + t.title + '</div>'
-        + (t.detail ? '<div class="cd">' + t.detail + '</div>' : '')
-        + '</div>'
-        + '<span class="ctag ' + (tagColors[tag]||'') + '">' + tag + '</span>';
-      ul.appendChild(li);
-    });
-
-    card.appendChild(ul);
-    container.appendChild(card);
-  });
-
-  // Restore checked state
-  if(camp && camp.checklistDone){
-    var items = document.querySelectorAll('#ai-todo-list .cl li');
-    camp.checklistDone.forEach(function(idx){
-      if(items[idx]) items[idx].classList.add('done');
-    });
-  }
-  updateProg();
-}
-
-async function generateTodos(){
-  var camp = getCamp(activeCampId);
-  if(!camp) return;
-  var btn     = document.getElementById('todo-ai-btn');
-  var loading = document.getElementById('todo-ai-loading');
-  if(btn)     btn.style.display = 'none';
-  if(loading) loading.style.display = 'block';
-
-  var days    = getDaysFor(camp.resetDate);
-  var log     = (camp.perfLog || []).slice(-7).map(function(e){
-    var cpl = e.leads > 0 ? '$' + Math.round(e.spend/e.leads) : 'no leads';
-    return e.date + ': ' + e.impr + ' impr, ' + e.clicks + ' clicks, $' + e.spend.toFixed(0) + ' spend, ' + e.leads + ' leads, CPL ' + cpl;
-  }).join('\n') || 'No performance data yet.';
-
-  var recentChanges = (camp.changes || []).slice(0, 3).map(function(c){
-    return c.date + ': [' + c.cat + '] ' + c.what;
-  }).join('\n') || 'None';
-
-  var pendingNegs = (camp.negatives || []).filter(function(n){ return !n.added; }).length;
-  var activeKWs   = (camp.keywords  || []).filter(function(k){ return k.status === 'Active'; }).length;
-
-  var histCtx = buildHistoryContext(camp.id, 'todos', 'weekly to-do analyses');
-  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro serving high-income homeowners in Johnson County. $' + camp.budget + '/day budget. Day ' + days + ' of recovery.\n\n'
-    + 'LAST 7 DAYS:\n' + log + '\n\n'
-    + 'RECENT CHANGES:\n' + recentChanges + '\n\n'
-    + 'Active keywords: ' + activeKWs + ' | Pending negatives to add: ' + pendingNegs + '\n\n'
-    + 'Generate a weekly to-do list for this business owner. Return ONLY a JSON array, no other text, no markdown, no backticks. Each item has: title (short action, max 10 words), detail (1-2 sentences of specific context for KCH), tag (exactly one of: Priority, Strategic, Growth). Return 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Make every task specific to where this campaign is right now — not generic Google Ads advice.';
-
-  try {
-    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user', content:prompt}]})
-    });
-    var data = await resp.json();
-    var text = data.content && data.content[0] ? data.content[0].text.trim() : '';
-    // Strip any accidental markdown
-    text = text.replace(/```json|```/g, '').trim();
-    var todos = JSON.parse(text);
-    saveAnalysis(camp.id, 'todos', 'Week of ' + getChicagoWeekKey() + ': ' + todos.map(function(t){ return '['+t.tag+'] '+t.title; }).join('; '));
-    camp.aiTodos    = todos;
-    camp.aiTodosWeek = getChicagoWeekKey();
-    camp.checklistDone = [];
-    save('campaigns', campaigns);
-    renderTodos(camp);
-  } catch(e) {
-    // Fall back to defaults silently
-    renderTodos(camp);
-  }
-  if(btn)     btn.style.display = 'block';
-  if(loading) loading.style.display = 'none';
-}
-
-function saveNotes(){
-  var camp=getCamp(activeCampId);
-  var notes=document.getElementById('my-notes');
-  if(camp&&notes){camp.pipelineNotes=notes.value;save('campaigns',campaigns);}
-  var m=document.getElementById('saved-msg');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
-}
-function resetWeek(){
-  if(!confirm('Reset checklist for a new week?'))return;
-  document.querySelectorAll('#scr-checklist .cl li').forEach(function(l){l.classList.remove('done');});
-  var n=document.getElementById('my-notes');if(n)n.value='';
-  updateProg();
-  var camp=getCamp(activeCampId);
-  if(camp){camp.checklistDone=[];camp.pipelineNotes='';save('campaigns',campaigns);}
-}
-
-// ══════════════════════════════════════════
-// KEYWORDS
-// ══════════════════════════════════════════
-var kwStatusColors={'Active':{bg:'#f0faf5',border:'#6ee7b7',text:'#155e3e'},'Testing':{bg:'#eff4ff',border:'#bfdbfe',text:'#1e3a8a'},'Paused':{bg:'#fffbeb',border:'#fcd34d',text:'#78350f'},'Removed':{bg:'#fff5f5',border:'#fca5a5',text:'#991b1b'}};
-var kwMatchColors={'Exact':{bg:'#f0faf5',color:'#155e3e'},'Phrase':{bg:'#eff4ff',color:'#1e3a8a'},'Broad':{bg:'#fffbeb',color:'#78350f'}};
-
-
-function wireKWButtons(camp){
-  // Sub-tab switching
-  var kwSubBtn  = document.getElementById('kw-subtab-btn');
-  var negSubBtn = document.getElementById('neg-subtab-btn');
-  var baseStyle   = 'padding:10px 20px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;color:var(--muted);';
-  var activeStyle = 'color:var(--stone);border-bottom-color:var(--gold);';
-  if(kwSubBtn && negSubBtn){
-    var kwPane  = kwSubBtn.parentElement.nextElementSibling;
-    var negPane = negSubBtn.parentElement.nextElementSibling
-                    ? negSubBtn.parentElement.nextElementSibling.nextElementSibling : null;
-    // Better: find by scanning siblings
-    var screens = document.querySelectorAll('#scr-keywords > div');
-    // kwPane is first div after subBar, negPane is second
-    var subBar = document.getElementById('kw-subtab-btn').parentElement;
-    var panes  = [];
-    var sib = subBar.nextElementSibling;
-    while(sib){ panes.push(sib); sib = sib.nextElementSibling; }
-    var kwP  = panes[0];
-    var negP = panes[1];
-    if(kwP && negP){
-      kwSubBtn.addEventListener('click', function(){
-        kwP.style.display  = 'block';
-        negP.style.display = 'none';
-        kwSubBtn.style.cssText  = baseStyle + activeStyle;
-        negSubBtn.style.cssText = baseStyle;
-      });
-      negSubBtn.addEventListener('click', function(){
-        kwP.style.display  = 'none';
-        negP.style.display = 'block';
-        negSubBtn.style.cssText = baseStyle + activeStyle;
-        kwSubBtn.style.cssText  = baseStyle;
-      });
-    }
-  }
-
-  // Add keyword button
-  var addBtn = document.getElementById('kw-add-btn');
-  if(addBtn) addBtn.addEventListener('click', addKW);
-
-  // Filter buttons
-  var filters = document.querySelectorAll('#kw-filters .kw-filter-btn');
-  filters.forEach(function(btn){
-    btn.addEventListener('click', function(){
-      filterKW(btn.getAttribute('data-filter'), btn);
-    });
-  });
-
-  // AI keyword button
-  var aiBtn = document.getElementById('kw-ai-btn');
-  if(aiBtn) aiBtn.addEventListener('click', getKWRec);
-
-  // Negatives buttons
-  var negAdd  = document.getElementById('neg-add-btn');
-  var negCopy = document.getElementById('neg-copy-btn');
-  var negAI   = document.getElementById('neg-ai-btn');
-  var negIn   = document.getElementById('neg-input');
-  if(negAdd)  negAdd.addEventListener('click', addNeg);
-  if(negCopy) negCopy.addEventListener('click', copyNegs);
-  if(negAI)   negAI.addEventListener('click', getNegRec);
-  if(negIn)   negIn.addEventListener('keydown', function(e){ if(e.key==='Enter') addNeg(); });
-}
-
-function addKW(){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var text=document.getElementById('kw-text').value.trim();
-  if(!text){alert('Please enter a keyword.');return;}
-  if(!camp.keywords)camp.keywords=[];
-  camp.keywords.push({id:Date.now(),text:text,match:document.getElementById('kw-match').value,status:document.getElementById('kw-status').value,notes:document.getElementById('kw-notes').value.trim(),added:new Date().toISOString().split('T')[0]});
-  save('campaigns',campaigns);
-  document.getElementById('kw-text').value='';document.getElementById('kw-notes').value='';
-  var m=document.getElementById('kw-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
-  renderKW(camp);
-}
-function updateKWStatus(id,val){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var kw=camp.keywords.find(function(k){return k.id===id;});
-  if(kw){kw.status=val;save('campaigns',campaigns);renderKW(camp);}
-}
-function updateKWNotes(id,val){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var kw=camp.keywords.find(function(k){return k.id===id;});
-  if(kw){kw.notes=val;save('campaigns',campaigns);}
-}
-function removeKW(id){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  camp.keywords=camp.keywords.filter(function(k){return k.id!==id;});
-  save('campaigns',campaigns);renderKW(camp);
-}
-function filterKW(f,btn){
-  var camp=getCamp(activeCampId);if(camp){camp.kwFilter=f;save('campaigns',campaigns);}
-  document.querySelectorAll('.kw-filter-btn').forEach(function(b){b.classList.remove('kw-f-active');});
-  btn.classList.add('kw-f-active');
-  renderKW(camp);
-}
-function renderKW(camp){
-  var list=document.getElementById('kw-list');if(!list)return;
-  if(!camp||!camp.keywords||camp.keywords.length===0){
-    list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords yet. Add your first keyword above.</div>';return;
-  }
-  var filter=camp.kwFilter||'all';
-  var filtered=filter==='all'?camp.keywords:camp.keywords.filter(function(k){return k.status===filter;});
-  if(filtered.length===0){
-    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords with status "'+filter+'".</div>';return;
-  }
-  list.innerHTML=filtered.map(function(kw){
-    var sc=kwStatusColors[kw.status]||{bg:'#f5f3ef',border:'var(--border)',text:'var(--muted)'};
-    var mc=kwMatchColors[kw.match]||{bg:'#f5f3ef',color:'var(--muted)'};
-    var opts=['Active','Testing','Paused','Removed'].map(function(s){return'<option value="'+s+'"'+(kw.status===s?' selected':'')+'>'+s+'</option>';}).join('');
-    return'<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">'
-      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
-      +'<div style="flex:1;min-width:0;">'
-      +'<div style="font-size:14px;font-weight:700;color:var(--stone);margin-bottom:6px;">'+kw.text+'</div>'
-      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+mc.bg+';color:'+mc.color+';">'+kw.match+' Match</span>'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+sc.bg+';color:'+sc.text+';border:1px solid '+sc.border+';">'+kw.status+'</span>'
-      +'<span style="font-size:10px;color:var(--muted);">Added '+kw.added+'</span>'
-      +'</div>'
-      +'<input type="text" value="'+kw.notes.replace(/"/g,'&quot;')+'" placeholder="Add a performance note..." onchange="updateKWNotes('+kw.id+',this.value)" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;color:var(--muted);background:var(--surface);outline:none;">'
-      +'</div>'
-      +'<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
-      +'<select onchange="updateKWStatus('+kw.id+',this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:700;color:var(--stone);background:var(--surface);outline:none;cursor:pointer;">'+opts+'</select>'
-      +'<button onclick="removeKW('+kw.id+')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;">Remove</button>'
-      +'</div></div></div>';
-  }).join('');
-}
-
-// ══════════════════════════════════════════
-// CHANGE LOG
-// ══════════════════════════════════════════
-var catColors={'Bidding Strategy':{bg:'#fce7f3',color:'#9d174d'},'Budget':{bg:'#fffbeb',color:'#78350f'},'Keywords':{bg:'#f0faf5',color:'#155e3e'},'Negative Keywords':{bg:'#f0faf5',color:'#155e3e'},'Ad Copy':{bg:'#eff4ff',color:'#1e3a8a'},'Landing Page':{bg:'#eff4ff',color:'#1e3a8a'},'Targeting':{bg:'#fff5f5',color:'#991b1b'},'Conversion Tracking':{bg:'#fce7f3',color:'#9d174d'},'Ad Schedule':{bg:'#fffbeb',color:'#78350f'},'Other':{bg:'#f5f3ef',color:'var(--muted)'}};
-
-function setChangeDateDefault(){
-  var el=document.getElementById('cl-date');if(!el)return;
-  var t=new Date();
-  el.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
-}
-
-function wireCLButtons(camp){
-  // AI wiring handled by wireAllAI
-}
-
-async function getChangeAI(){
-  var camp = getCamp(activeCampId);
-  if(!camp || !camp.changes || camp.changes.length === 0){ alert('Log a change first.'); return; }
-  var btn     = document.getElementById('cl-ai-btn');
-  var loading = document.getElementById('cl-ai-loading');
-  var output  = document.getElementById('cl-ai-output');
-  aiStart(btn, loading, output);
-
-  var latest = camp.changes[0];
-  var days   = getDaysFor(camp.resetDate);
-  var allChanges = camp.changes.slice(0,5).map(function(c){
-    return c.date+' ['+c.cat+']: '+c.what+(c.outcome?' → Outcome: '+c.outcome:'');
-  }).join('\n');
-
-  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
-    + 'LATEST CHANGE:\nDate: '+latest.date+'\nCategory: '+latest.cat+'\nWhat: '+latest.what+'\nWhy: '+latest.why+'\nExpected: '+latest.expected+'\n\n'
-    + 'RECENT CHANGE HISTORY:\n'+allChanges+'\n\n'
-    + 'Analyze this change and provide:\n'
-    + 'IMPACT: What effect will this have on the campaign and when?\n'
-    + 'RISK: Any downside risks given where this campaign is right now?\n'
-    + 'WATCH FOR: One metric to monitor over the next 7 days.\n\n'
-    + 'Be specific to this exact change and campaign stage. No filler. Under 200 words.'
-    + buildHistoryContext(camp.id, 'changes', 'change log analyses');
-
-  try {
-    var text = await callAI(prompt, 600);
-    aiDone(loading);
-    aiShowResult(output, btn, text, camp.id, 'changes');
-  } catch(e) {
-    aiDone(loading);
-    aiError(output, btn);
-  }
-}
-
-
-async function getKWRec(){
-  var camp = getCamp(activeCampId);
-  if(!camp){ return; }
-  var btn     = document.getElementById('kw-ai-btn');
-  var loading = document.getElementById('kw-ai-loading');
-  var output  = document.getElementById('kw-ai-output');
-  aiStart(btn, loading, output);
-
-  var kwList = (camp.keywords||[]).map(function(k){
-    return '['+k.match+'] '+k.text+' ('+k.status+')';
-  }).join('\n') || 'No keywords logged yet.';
-
-  var prompt = 'You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. Conversions come through a Calendly booking page.\n\n'
-    + 'CURRENT KEYWORD LIST:\n'+kwList+'\n\n'
-    + 'Daily budget: $'+camp.budget+'. Day '+getDaysFor(camp.resetDate)+' of recovery.\n\n'
-    + 'Provide keyword strategy covering:\n'
-    + '1. CUT — which keywords (if any) should be paused or removed and why\n'
-    + '2. ADD — 3-5 specific new keywords worth testing with match type recommendation\n'
-    + '3. MATCH TYPE STRATEGY — should KCH be running more Exact or Phrase match right now and why\n'
-    + '4. QUICK WIN — one change to make this week\n\n'
-    + 'Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type.'
-    + buildHistoryContext(camp.id, 'kw', 'keyword strategy analyses');
-
-  try {
-    var text = await callAI(prompt, 800);
-    aiDone(loading);
-    aiShowResult(output, btn, text, camp.id, 'kw');
-  } catch(e) {
-    aiDone(loading);
-    aiError(output, btn);
-  }
-}
-
-
-async function getNegRec(){
-  var camp = getCamp(activeCampId);
-  var btn = document.getElementById('neg-ai-btn');
-  var loading = document.getElementById('neg-ai-loading');
-  var output = document.getElementById('neg-ai-output');
-  btn.style.display='none'; loading.style.display='block'; output.style.display='none';
-
-  var currentNegs = camp.negatives ? camp.negatives.map(function(n){return n.text;}).join(', ') : 'None';
-  var activeKWs = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Active';}).map(function(k){return '"'+k.text+'" ('+k.match+')';}).join(', ') : 'None logged';
-  var days = getDaysSinceReset(camp);
-
-  var prompt = "You are a Google Ads negative keyword specialist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. $" + camp.budget + "/day budget. Day " + days + " of recovery.\n\n"
-    + "ACTIVE KEYWORDS: " + activeKWs + "\n\n"
-    + "CURRENT NEGATIVE KEYWORD LIST:\n" + currentNegs + "\n\n"
-    + "Your job is to identify the GAPS in their negative keyword coverage. Given their active keywords and premium hardscape positioning, what search queries are they likely showing up for that will never convert — and are not already blocked?\n\n"
-    + "Think about:\n"
-    + "- DIY and how-to intent queries\n"
-    + "- Price-shopping / cheap / budget queries\n"
-    + "- Commercial / contractor job seekers (not homeowners)\n"
-    + "- Wrong geography (outside Johnson County)\n"
-    + "- Wrong product category (concrete, deck, fence, etc.)\n"
-    + "- Informational research queries with no buying intent\n"
-    + "- Competitor or brand name queries\n\n"
-    + "Provide:\n"
-    + "1. TOP PRIORITY negatives to add immediately (likely causing wasted spend right now)\n"
-    + "2. SECONDARY negatives to add soon\n"
-    + "3. One sentence explaining the biggest gap in their current negative list\n\n"
-    + "Give specific keyword phrases, not categories. These should be real searches a non-buyer would type that could trigger their hardscape ads.";
-
-  try {
-    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user', content:prompt}]})
-    });
-    var data = await resp.json();
-    var text = data.content && data.content[0] ? data.content[0].text : 'No response.';
-    var formatted = text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n\n/g,'<br><br>')
-      .replace(/\n/g,'<br>');
-    var outDiv2 = document.createElement('div');
-    outDiv2.style.cssText = 'padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);';
-    outDiv2.innerHTML = formatted;
-    var footDiv = document.createElement('div');
-    footDiv.style.cssText = 'margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;';
-    var hint = document.createElement('span');
-    hint.style.cssText = 'font-size:11px;color:var(--muted);';
-    hint.textContent = 'Review these and add the ones that apply using the form above.';
-    var regenBtn2 = document.createElement('button');
-    regenBtn2.className = 'btn btn-ghost';
-    regenBtn2.style.fontSize = '11px';
-    regenBtn2.textContent = 'Regenerate';
-    regenBtn2.addEventListener('click', function(){ btn.style.display='block'; output.style.display='none'; });
-    footDiv.appendChild(hint);
-    footDiv.appendChild(regenBtn2);
-    output.innerHTML = '';
-    output.appendChild(outDiv2);
-    output.appendChild(footDiv);
-    output.style.display = 'block';
-  } catch(e) {
-    output.innerHTML = '<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not generate recommendation. Check your connection and try again.</div>';
-    output.style.display = 'block';
-    btn.style.display = 'block';
-  }
-  loading.style.display = 'none';
-}
-
-// ══════════════════════════════════════════
-// SEASONALITY INIT
-// ══════════════════════════════════════════
-
-
-// ══════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════
-
-
-// ── START ────────────────────────────────
+// ── BOOT ─────────────────────────────────
 showHome();
-</script>
-</body>
-</html>
+
