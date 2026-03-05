@@ -118,7 +118,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .camp-card-stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border-lt);}
 .camp-stat{padding:14px 12px;text-align:center;border-right:1px solid var(--border-lt);}
 .camp-stat:last-child{border-right:none;}
-.camp-stat-val{font-size:16px;font-weight:700;color:var(--stone);font-family:'JetBrains Mono',monospace;letter-spacing:-.5px;}
+.camp-stat-val{font-size:16px;font-weight:700;color:var(--stone);font-family:monospace;letter-spacing:-.5px;}
 .camp-stat-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted-lt);margin-top:4px;}
 .camp-card-foot{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-top:1px solid var(--border-lt);}
 .camp-status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0;}
@@ -230,7 +230,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 /* ── FORM INPUTS ── */
 .input-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .sym{position:relative;}
-.sym::before{content:attr(data-s);position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;pointer-events:none;}
+.sym::before{content:attr(data-s);position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);font-family:monospace;pointer-events:none;}
 .sym input{padding-left:26px;}
 
 /* ── STAT TILES ── */
@@ -239,7 +239,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .tile{border-radius:10px;padding:16px 18px;border:1px solid var(--border);background:var(--white);box-shadow:var(--shadow);transition:box-shadow .15s;}
 .tile:hover{box-shadow:var(--shadow-md);}
 .tile-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:8px;}
-.tile-val{font-size:26px;font-weight:700;line-height:1;color:var(--stone);font-family:'JetBrains Mono',monospace;letter-spacing:-1.5px;}
+.tile-val{font-size:26px;font-weight:700;line-height:1;color:var(--stone);font-family:monospace;letter-spacing:-1.5px;}
 .tile-sub{font-size:10px;font-weight:500;margin-top:6px;color:var(--muted);}
 .tile.good{background:var(--green-lt);border-color:var(--green-border);}
 .tile.good .tile-val,.tile.good .tile-lbl{color:var(--green);}
@@ -292,7 +292,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .prog-wrap{padding:16px 20px 14px;}
 .prog-row{display:flex;justify-content:space-between;margin-bottom:8px;}
 .prog-lbl{font-size:12px;font-weight:600;}
-.prog-num{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.prog-num{font-size:12px;color:var(--muted);font-family:monospace;}
 .prog-bg{background:var(--surface);border-radius:99px;height:5px;overflow:hidden;}
 .prog-fill{height:5px;border-radius:99px;background:linear-gradient(90deg,var(--gold),#22c55e);transition:width .4s ease;}
 .done-banner{display:none;background:var(--green);color:#fff;border-radius:8px;padding:14px 18px;margin-bottom:14px;text-align:center;}
@@ -306,7 +306,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .jrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);}
 .jrow:last-child{border-bottom:none;padding-top:12px;margin-top:4px;}
 .jlbl{font-size:12px;color:rgba(255,255,255,.45);}
-.jval{font-size:14px;font-weight:600;color:#fff;font-family:'JetBrains Mono',monospace;}
+.jval{font-size:14px;font-weight:600;color:#fff;font-family:monospace;}
 .jval.gold{color:var(--gold-bright);}
 .jval.green{color:#4ade80;}
 
@@ -336,7 +336,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .bt th{text-align:left;padding:10px 14px;background:var(--bg);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:2px solid var(--border);}
 .bt td{padding:12px 14px;border-bottom:1px solid var(--border-lt);font-size:12px;vertical-align:top;}
 .bt tr:last-child td{border-bottom:none;}
-.bt-metric{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:-1px;}
+.bt-metric{font-size:16px;font-weight:700;font-family:monospace;letter-spacing:-1px;}
 .bt-note{font-size:11px;color:var(--muted);line-height:1.6;margin-top:2px;}
 
 /* ── NOTES ── */
@@ -847,7 +847,7 @@ function renderHome() {
 // ── CAMPAIGN PAGE ────────────────────────
 function renderCampaign(camp) {
   var tabs = camp.type === 'search'
-    ? ['input','performance','recovery','checklist','keywords','changes','season']
+    ? ['input','performance','checklist','keywords','changes','season']
     : camp.type === 'pmax'
     ? ['input','performance','changes']
     : ['input','performance','changes','keywords'];
@@ -868,11 +868,6 @@ function renderCampaign(camp) {
     (function(tabId, idx) {
       var btn = document.createElement('button');
       btn.className = 'tab' + (idx === 0 ? ' active' : '');
-      if (tabId === 'recovery') {
-        var dot = document.createElement('span');
-        dot.className = 'tab-dot';
-        btn.appendChild(dot);
-      }
       btn.appendChild(document.createTextNode(tabNames[tabId]));
       btn.addEventListener('click', function() {
         document.querySelectorAll('#camp-tabs .tab').forEach(function(t) { t.classList.remove('active'); });
@@ -905,6 +900,20 @@ function renderCampaign(camp) {
   renderPerfLog(camp);
   // Final AI wiring pass after all renders complete
   setTimeout(function(){ wireAllAI(camp); }, 50);
+  // Auto-run AI summary on Performance tab load
+  setTimeout(function(){
+    var regenBtn = document.getElementById('perf-ai-regen');
+    if(regenBtn){
+      regenBtn.addEventListener('click', function(){
+        var out = document.getElementById('perf-ai-output');
+        var load = document.getElementById('perf-ai-loading');
+        if(out) out.innerHTML = '';
+        if(load) load.style.display = 'block';
+        getPerfAI();
+      });
+    }
+    getPerfAI();
+  }, 100);
 }
 
 // ── HELPERS ──────────────────────────────
@@ -1235,74 +1244,47 @@ function renderDILog(camp){
 function buildPerformance(camp){
   var el = document.createElement('div');
 
-  // ── SCORE CHART (always visible, filled by renderPerfLog)
+  // ── CAMPAIGN INTELLIGENCE (auto-runs AI) ─────────────────────────────────
+  var aiCard = document.createElement('div');
+  aiCard.className = 'card';
+  aiCard.style.marginBottom = '14px';
+  aiCard.innerHTML = ''
+    + '<div class="card-head"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
+    + '<div><h3 style="margin:0;">Campaign Intelligence</h3><p style="margin:4px 0 0;">Auto-updated from your daily log data.</p></div>'
+    + '<button class="btn btn-ghost btn-sm" id="perf-ai-regen" style="font-size:11px;">↻ Refresh</button>'
+    + '</div></div>'
+    + '<div class="card-body">'
+    + '<div id="perf-ai-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Analyzing your campaign data...</div>'
+    + '<div id="perf-ai-output" style="font-size:13px;line-height:1.85;color:var(--stone);display:none;"></div>'
+    + '<div id="perf-ai-no-data" style="display:none;padding:14px;background:var(--surface);border-radius:8px;border:1px solid var(--border);font-size:13px;color:var(--muted);">Log a few days of data on the Daily Input tab to unlock AI analysis.</div>'
+    + '<button id="perf-ai-btn" style="display:none;"></button>'
+    + '</div>';
+  el.appendChild(aiCard);
+
+  // ── TREND CHART (rendered by renderPerfLog) ───────────────────────────────
+  var trendWrap = document.createElement('div');
+  trendWrap.id = 'perf-trend-chart';
+  trendWrap.style.marginBottom = '14px';
+  el.appendChild(trendWrap);
+
+  // ── SCORE CHART ───────────────────────────────────────────────────────────
   var chartWrap = document.createElement('div');
   chartWrap.id = 'perf-score-chart';
   el.appendChild(chartWrap);
 
-  // ── SUMMARY TILES (filled by renderPerfLog)
+  // ── SUMMARY TILES ─────────────────────────────────────────────────────────
   var tiles = document.createElement('div');
   tiles.id = 'perf-summary-tiles';
   el.appendChild(tiles);
 
-  // ── DAILY LOG TABLE (filled by renderPerfLog)
+  // ── DAILY LOG TABLE ───────────────────────────────────────────────────────
   var weekly = document.createElement('div');
   weekly.id = 'perf-weekly-table';
   el.appendChild(weekly);
 
-  // ── AI TREND ANALYSIS
-  var aiCard = document.createElement('div');
-  aiCard.className = 'card';
-  aiCard.style.marginTop = '14px';
-  var aiHead = document.createElement('div');
-  aiHead.className = 'card-head';
-  aiHead.innerHTML = '<h3>AI Trend Analysis</h3><p>Reads your full performance history and tells you what the trends mean in plain English.</p>';
-  var aiBody = document.createElement('div');
-  aiBody.className = 'card-body';
-  var aiBtn = document.createElement('button');
-  aiBtn.id = 'perf-ai-btn';
-  aiBtn.className = 'btn btn-gold';
-  aiBtn.textContent = 'Analyze My Campaign Trend';
-  aiBtn.style.cssText = 'width:100%;justify-content:center;font-size:13px;padding:12px;';
-  aiBtn.addEventListener('click', getPerfAI);
-  var aiLoading = document.createElement('div');
-  aiLoading.id = 'perf-ai-loading';
-  aiLoading.textContent = 'Analyzing your performance history...';
-  aiLoading.style.cssText = 'display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;';
-  var aiOutput = document.createElement('div');
-  aiOutput.id = 'perf-ai-output';
-  aiOutput.style.display = 'none';
-  aiOutput.style.marginTop = '14px';
-  aiBody.appendChild(aiBtn);
-  aiBody.appendChild(aiLoading);
-  aiBody.appendChild(aiOutput);
-  aiCard.appendChild(aiHead);
-  aiCard.appendChild(aiBody);
-  el.appendChild(aiCard);
-
-  // ── KCH BENCHMARKS
-  var bmCard = document.createElement('div');
-  bmCard.className = 'card';
-  bmCard.style.marginTop = '14px';
-  var bmHead = document.createElement('div');
-  bmHead.className = 'card-head';
-  bmHead.innerHTML = '<h3>KCH Benchmarks</h3><p>Calibrated for premium hardscape in the KC metro market.</p>';
-  var bmBody = document.createElement('div');
-  bmBody.style.overflowX = 'auto';
-  bmBody.innerHTML = '<table class="bm"><thead><tr>'
-    + '<th>Metric</th><th class="c-bad">Concern</th><th class="c-warn">Okay</th><th class="c-good">Strong</th>'
-    + '</tr></thead><tbody>'
-    + '<tr><td><strong>Click Rate (CTR)</strong><div class="bm-sub">Hardscape is niche — low volume is normal</div></td><td class="c-bad">&lt;2%</td><td class="c-warn">2–5%</td><td class="c-good">&gt;5%</td></tr>'
-    + '<tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr>'
-    + '<tr><td><strong>Cost Per Lead</strong><div class="bm-sub">Premium hardscape margins support a high CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr>'
-    + '<tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr>'
-    + '<tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:700;text-align:left;">$3,000 per lead</td></tr>'
-    + '</tbody></table>';
-  bmCard.appendChild(bmHead);
-  bmCard.appendChild(bmBody);
-  el.appendChild(bmCard);
-
+  return el.innerHTML;
 }
+
 
 // ── DAILY SCORE CALCULATOR ───────────────
 function calcDayScore(e, dayNum){
@@ -1592,12 +1574,189 @@ function renderScoreChart(camp, range){
   el.appendChild(card);
 }
 
+// ── TREND CHART ──────────────────────────
+function renderTrendChart(camp){
+  var el = document.getElementById('perf-trend-chart');
+  if(!el) return;
+
+  var log = (camp.perfLog || []).slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+
+  if(log.length < 2){
+    el.innerHTML = '<div class="card" style="margin-bottom:14px;"><div class="card-body" style="padding:32px 20px;text-align:center;color:var(--muted);font-size:13px;">Log at least 2 days to see trend charts.</div></div>';
+    return;
+  }
+
+  var W = 680, H = 260, PAD = {t:18, r:24, b:48, l:52};
+  var CW = W - PAD.l - PAD.r;
+  var CH = H - PAD.t - PAD.b;
+  var N  = log.length;
+
+  // Scale helpers
+  function scaleX(i){ return PAD.l + (i / (N-1)) * CW; }
+  function scaleY(val, min, max){ return PAD.t + CH - ((val - min) / (Math.max(max - min, 1))) * CH; }
+  function nice(arr){ return arr.filter(function(v){ return v !== null && v !== undefined && !isNaN(v); }); }
+
+  var imprs   = log.map(function(e){ return e.impr || 0; });
+  var spends  = log.map(function(e){ return e.spend || 0; });
+  var leads   = log.map(function(e){ return e.leads || 0; });
+  var isList  = log.map(function(e){ return (e.is !== null && e.is !== undefined) ? e.is : null; });
+
+  var maxImpr  = Math.max.apply(null, imprs) || 1;
+  var maxSpend = Math.max.apply(null, spends) || 1;
+  var maxLeads = Math.max.apply(null, leads) || 1;
+  var maxIS    = 100;
+
+  // Detect trends
+  function trend(arr){
+    var v = nice(arr);
+    if(v.length < 2) return 'flat';
+    var first = v.slice(0, Math.ceil(v.length/2)).reduce(function(a,b){return a+b;},0) / Math.ceil(v.length/2);
+    var last  = v.slice(Math.floor(v.length/2)).reduce(function(a,b){return a+b;},0)  / Math.ceil(v.length/2);
+    var pct   = ((last - first) / (Math.abs(first) || 1)) * 100;
+    return pct > 8 ? 'up' : pct < -8 ? 'down' : 'flat';
+  }
+  var tImpr  = trend(imprs);
+  var tSpend = trend(spends);
+  var tLeads = trend(leads);
+
+  function arrow(t){ return t==='up' ? '↑' : t==='down' ? '↓' : '→'; }
+  function tColor(t, invert){ 
+    if(invert) return t==='up'?'#ef4444':t==='down'?'#22c55e':'#6b7280';
+    return t==='up'?'#22c55e':t==='down'?'#ef4444':'#6b7280'; 
+  }
+
+  function makeLine(vals, minV, maxV, color, dash){
+    var pts = [];
+    vals.forEach(function(v, i){
+      pts.push(scaleX(i) + ',' + scaleY(v, minV, maxV));
+    });
+    return '<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+'/>';
+  }
+
+  function makeArea(vals, minV, maxV, color){
+    var pts = vals.map(function(v,i){ return scaleX(i)+','+scaleY(v,minV,maxV); });
+    var bottom = 'L'+scaleX(N-1)+','+(PAD.t+CH)+' L'+PAD.l+','+(PAD.t+CH)+' Z';
+    return '<path d="M'+pts.join(' L')+' '+bottom+'" fill="'+color+'" opacity="0.07"/>';
+  }
+
+  function makeDots(vals, minV, maxV, color){
+    return vals.map(function(v, i){
+      var x = scaleX(i), y = scaleY(v, minV, maxV);
+      var lbl = i === vals.length-1 || i === 0;
+      var txt = lbl ? '<text x="'+(x)+'" y="'+(y-9)+'" text-anchor="middle" font-size="10" fill="'+color+'" font-weight="700">'+v+'</text>' : '';
+      return '<circle cx="'+x+'" cy="'+y+'" r="3.5" fill="white" stroke="'+color+'" stroke-width="2"/>'+txt;
+    }).join('');
+  }
+
+  // Lead markers — diamonds
+  function makeLeadMarkers(vals, minV, maxV){
+    return vals.map(function(v, i){
+      if(v <= 0) return '';
+      var x = scaleX(i), y = scaleY(v, minV, maxV);
+      var s = 7;
+      return '<polygon points="'+x+','+(y-s)+' '+(x+s)+','+y+' '+x+','+(y+s)+' '+(x-s)+','+y+'" fill="#f59e0b" stroke="#d97706" stroke-width="1.5"/>'
+        + '<text x="'+x+'" y="'+(y-s-5)+'" text-anchor="middle" font-size="10" fill="#d97706" font-weight="800">'+v+'✓</text>';
+    }).join('');
+  }
+
+  // IS% dots (only where available)
+  function makeISDots(){
+    return isList.map(function(v, i){
+      if(v === null) return '';
+      var x = scaleX(i), y = scaleY(v, 0, maxIS);
+      var col = v < 20 ? '#ef4444' : v < 40 ? '#f59e0b' : '#22c55e';
+      return '<circle cx="'+x+'" cy="'+y+'" r="4" fill="'+col+'" opacity="0.9"/>'
+        + '<text x="'+(x)+'" y="'+(y-8)+'" text-anchor="middle" font-size="9" fill="'+col+'" font-weight="700">'+v+'%</text>';
+    }).join('');
+  }
+
+  // X-axis labels
+  var xLabels = log.map(function(e, i){
+    var d = new Date(e.date+'T12:00:00');
+    var lbl = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var show = N <= 10 || i === 0 || i === N-1 || i % Math.ceil(N/8) === 0;
+    if(!show) return '';
+    return '<text x="'+scaleX(i)+'" y="'+(PAD.t+CH+18)+'" text-anchor="middle" font-size="10" fill="#9ca3af">'+lbl+'</text>';
+  }).join('');
+
+  // Y-axis (impressions, left)
+  var ySteps = 4;
+  var yLabels = '';
+  for(var s=0; s<=ySteps; s++){
+    var yv = Math.round(maxImpr * s / ySteps);
+    var yy = scaleY(yv, 0, maxImpr);
+    yLabels += '<text x="'+(PAD.l-6)+'" y="'+(yy+4)+'" text-anchor="end" font-size="10" fill="#9ca3af">'+yv+'</text>';
+    yLabels += '<line x1="'+PAD.l+'" y1="'+yy+'" x2="'+(PAD.l+CW)+'" y2="'+yy+'" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3,3"/>';
+  }
+
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">'
+    + yLabels + xLabels
+    // Areas
+    + makeArea(imprs,  0, maxImpr,  '#6366f1')
+    + makeArea(spends, 0, maxSpend, '#f59e0b')
+    // Lines
+    + makeLine(imprs,  0, maxImpr,  '#6366f1')
+    + makeLine(spends, 0, maxSpend, '#f59e0b', '6,3')
+    // IS% line (dashed, scaled to 0-100)
+    + (nice(isList).length >= 2 ? makeLine(isList.map(function(v){return v===null?0:v;}), 0, maxIS, '#10b981', '4,4') : '')
+    // Dots
+    + makeDots(imprs,  0, maxImpr,  '#6366f1')
+    + makeDots(spends, 0, maxSpend, '#f59e0b')
+    // Lead diamonds on top
+    + makeLeadMarkers(leads, 0, maxLeads)
+    + (nice(isList).length >= 2 ? makeISDots() : '')
+    // Axes
+    + '<line x1="'+PAD.l+'" y1="'+PAD.t+'" x2="'+PAD.l+'" y2="'+(PAD.t+CH)+'" stroke="#d1d5db" stroke-width="1"/>'
+    + '<line x1="'+PAD.l+'" y1="'+(PAD.t+CH)+'" x2="'+(PAD.l+CW)+'" y2="'+(PAD.t+CH)+'" stroke="#d1d5db" stroke-width="1"/>'
+    + '</svg>';
+
+  // Trend markers below chart
+  var lastImpr  = imprs[N-1];
+  var lastSpend = spends[N-1];
+  var lastLeads = leads[N-1];
+  var avgCPL    = (function(){ var ts=0,tl=0; log.forEach(function(e){ts+=e.spend;tl+=e.leads;}); return tl>0?Math.round(ts/tl):null; })();
+  var totalLeads= leads.reduce(function(a,b){return a+b;},0);
+
+  var markers = [
+    { lbl:'Impressions', val: lastImpr, sub: 'Yesterday', trend: tImpr, invert: false },
+    { lbl:'Spend',       val: '$'+lastSpend.toFixed(0), sub: 'Yesterday', trend: tSpend, invert: true },
+    { lbl:'Avg CPL',     val: avgCPL ? '$'+avgCPL : '—', sub: 'All time', trend: trend(log.map(function(e,i){return e.leads>0?Math.round(e.spend/e.leads):null;})), invert: true },
+    { lbl:'Total Leads', val: totalLeads, sub: 'Since reset', trend: tLeads, invert: false },
+  ];
+
+  var markerHtml = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;">';
+  markers.forEach(function(m){
+    var col = tColor(m.trend, m.invert);
+    markerHtml += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
+      + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">'+m.lbl+'</div>'
+      + '<div style="font-size:20px;font-weight:800;color:var(--stone);font-family:monospace;">'+m.val+'</div>'
+      + '<div style="font-size:11px;margin-top:3px;color:'+col+';font-weight:700;">'+arrow(m.trend)+' '+m.sub+'</div>'
+      + '</div>';
+  });
+  markerHtml += '</div>';
+
+  // Legend
+  var legend = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted);">'
+    + '<span><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#6366f1" stroke-width="2.5"/></svg> Impressions</span>'
+    + '<span><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="6,3"/></svg> Spend ($)</span>'
+    + (nice(isList).length >= 2 ? '<span><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#10b981" stroke-width="2" stroke-dasharray="4,4"/></svg> Imp. Share %</span>' : '')
+    + '<span><svg width="12" height="12"><polygon points="6,0 12,6 6,12 0,6" fill="#f59e0b"/></svg> Lead logged</span>'
+    + '</div>';
+
+  el.innerHTML = '<div class="card" style="margin-bottom:14px;">'
+    + '<div class="card-head"><h3>Performance Trends</h3><p>Daily actuals from your logged entries.</p></div>'
+    + '<div style="padding:16px 20px 0;">' + svg + legend + '</div>'
+    + '<div style="padding:12px 20px 16px;">' + markerHtml + '</div>'
+    + '</div>';
+}
+
 function renderPerfLog(camp){
   var tilesEl  = document.getElementById('perf-summary-tiles');
   var tableEl  = document.getElementById('perf-weekly-table');
   if(!tilesEl || !tableEl) return;
 
-  // Always render chart (shows empty state if no data)
+  // Render trend chart and score chart
+  renderTrendChart(camp);
   renderScoreChart(camp);
 
   if(!camp.perfLog || camp.perfLog.length === 0){
@@ -1696,8 +1855,17 @@ async function getPerfAI(){
   var btn     = document.getElementById('perf-ai-btn');
   var loading = document.getElementById('perf-ai-loading');
   var output  = document.getElementById('perf-ai-output');
-  if(!camp || !camp.perfLog || camp.perfLog.length === 0){ alert('Log at least a few days of data first.'); return; }
-  aiStart(btn, loading, output);
+  if(!loading || !output) return;
+  var noData = document.getElementById('perf-ai-no-data');
+  if(!camp.perfLog || camp.perfLog.length === 0){
+    loading.style.display = 'none';
+    if(noData) noData.style.display = 'block';
+    return;
+  }
+  if(noData) noData.style.display = 'none';
+  output.style.display = 'none';
+  output.innerHTML = '';
+  loading.style.display = 'block';
 
   var days = getDaysFor(camp.resetDate);
   var logSummary = camp.perfLog.map(function(e){
@@ -1728,7 +1896,11 @@ async function getPerfAI(){
   try {
     var text = await callAI(prompt, 800);
     aiDone(loading);
-    aiShowResult(output, btn, text, camp.id, 'perf');
+    if(output){
+      output.innerHTML = aiFormat(text);
+      output.style.display = 'block';
+    }
+    saveAnalysis(camp.id, 'perf', text);
   } catch(e) {
     aiDone(loading);
     aiError(output, btn);
@@ -2471,3 +2643,6 @@ function getChicagoWeekKey(){
 // ── BOOT ─────────────────────────────────
 showHome();
 
+</script>
+</body>
+</html>
