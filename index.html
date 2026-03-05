@@ -919,7 +919,8 @@ function renderCampaign(camp) {
         getPerfAI();
       });
     }
-    getPerfAI();
+    var existingOutput = document.getElementById('perf-ai-output');
+    if(!existingOutput || existingOutput.innerHTML.trim() === '') getPerfAI();
   }, 100);
 }
 
@@ -1900,8 +1901,21 @@ async function getPerfAI(){
     + 'Write directly to the business owner. Honest and specific. Under 300 words.'
     + buildHistoryContext(camp.id, 'perf', 'performance trend analyses');
 
+  // Timeout safety — never spin forever
+  var timedOut = false;
+  var timer = setTimeout(function(){
+    timedOut = true;
+    if(loading) loading.style.display = 'none';
+    if(output){
+      output.innerHTML = '<div style="padding:12px 16px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;font-size:13px;color:#991b1b;">AI timed out. Check your connection and click ↻ Refresh.</div>';
+      output.style.display = 'block';
+    }
+  }, 20000);
+
   try {
     var text = await callAI(prompt, 800);
+    clearTimeout(timer);
+    if(timedOut) return;
     aiDone(loading);
     if(output){
       output.innerHTML = aiFormat(text);
@@ -1909,8 +1923,13 @@ async function getPerfAI(){
     }
     saveAnalysis(camp.id, 'perf', text);
   } catch(e) {
+    clearTimeout(timer);
+    if(timedOut) return;
     aiDone(loading);
-    aiError(output, btn);
+    if(output){
+      output.innerHTML = '<div style="padding:12px 16px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;font-size:13px;color:#991b1b;">Could not reach AI. Check your connection and click ↻ Refresh to try again.</div>';
+      output.style.display = 'block';
+    }
   }
 }
 
