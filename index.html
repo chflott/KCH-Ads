@@ -1082,6 +1082,7 @@ function buildInput(camp, container){
   grid2.style.marginBottom = '16px';
   grid2.innerHTML = '<div class="mf"><label>Avg. CPC</label><div class="sym" data-s="$"><input type="number" id="di-cpc" placeholder="e.g. 14.50" min="0" step="0.01"></div></div>'
     + '<div class="mf"><label>Search Impression Share</label><div class="sym" data-s="%"><input type="number" id="di-is" placeholder="e.g. 28" min="0" max="100" step="0.1"></div></div>'
+    + '<div class="mf"><label>Click-Through Rate (CTR)</label><div class="sym" data-s="%"><input type="number" id="di-ctr" placeholder="Auto-calc" min="0" max="100" step="0.01"></div><div style="font-size:10px;color:var(--muted);margin-top:3px;">Auto-fills from Clicks ÷ Impressions</div></div>'
     + '<div class="mf"><label>Quality Score (avg)</label><input type="number" id="di-qs" placeholder="e.g. 7" min="1" max="10" step="0.1"></div>'
     + '<div class="mf"><label>Google Conversions tracked</label><input type="number" id="di-gconv" placeholder="e.g. 1" min="0" step="0.1"></div>';
   body.appendChild(grid2);
@@ -1127,6 +1128,7 @@ function loadDIEntry(e){
   setVal('di-is',     e.is);
   setVal('di-qs',     e.qs);
   setVal('di-gconv',  e.gconv);
+  setVal('di-ctr',    e.ctr);
   // Scroll to top of input tab and highlight the form briefly
   var formCard = document.querySelector('#scr-input .card');
   if(formCard){
@@ -1150,13 +1152,15 @@ function saveDailyInput(){
   var isV     = document.getElementById('di-is').value;
   var qsV     = document.getElementById('di-qs').value;
   var gcV     = document.getElementById('di-gconv').value;
+  var ctrV    = (document.getElementById('di-ctr')||{}).value||'';
   var cpc     = cpcV  !== '' ? parseFloat(cpcV)  : null;
   var is      = isV   !== '' ? parseFloat(isV)   : null;
   var qs      = qsV   !== '' ? parseFloat(qsV)   : null;
   var gconv   = gcV   !== '' ? parseFloat(gcV)   : null;
+  var ctr     = ctrV  !== '' ? parseFloat(ctrV)  : (impr > 0 && clicks > 0 ? parseFloat((clicks/impr*100).toFixed(2)) : null);
   if(!camp.perfLog) camp.perfLog = [];
   camp.perfLog = camp.perfLog.filter(function(e){ return e.date !== date; });
-  camp.perfLog.push({ date:date, impr:impr, clicks:clicks, spend:spend, leads:leads, cpc:cpc, is:is, qs:qs, gconv:gconv });
+  camp.perfLog.push({ date:date, impr:impr, clicks:clicks, spend:spend, leads:leads, cpc:cpc, is:is, qs:qs, gconv:gconv, ctr:ctr });
   camp.perfLog.sort(function(a,b){ return a.date.localeCompare(b.date); });
   save('campaigns', campaigns);
   var m = document.getElementById('di-saved');
@@ -1633,7 +1637,7 @@ function renderTrendChart(camp){
     return pct > 8 ? 'up' : pct < -8 ? 'down' : 'flat';
   }
   var tImpr  = trend(imprs);
-  var tSpend = trend(spends);
+  var tSpendT = trend(spends);
   var tLeads = trend(leads);
 
   function arrow(t){ return t==='up' ? '↑' : t==='down' ? '↓' : '→'; }
@@ -1734,11 +1738,13 @@ function renderTrendChart(camp){
   var avgCPL    = (function(){ var ts=0,tl=0; log.forEach(function(e){ts+=e.spend;tl+=e.leads;}); return tl>0?Math.round(ts/tl):null; })();
   var totalLeads= leads.reduce(function(a,b){return a+b;},0);
 
+  var lastSpend  = log[N-1].spend || 0;
+  var tSpend     = trend(log.map(function(e){ return e.spend||0; }));
   var markers = [
-    { lbl:'Impressions', val: lastImpr, sub: 'Yesterday', trend: tImpr, invert: false },
-    { lbl:'Spend',       val: '$'+lastSpend.toFixed(0), sub: 'Yesterday', trend: tSpend, invert: true },
-    { lbl:'Avg CPL',     val: avgCPL ? '$'+avgCPL : '—', sub: 'All time', trend: trend(log.map(function(e,i){return e.leads>0?Math.round(e.spend/e.leads):null;})), invert: true },
-    { lbl:'Total Leads', val: totalLeads, sub: 'Since reset', trend: tLeads, invert: false },
+    { lbl:'Impressions', val: lastImpr,                        sub: 'Yesterday', trend: tImpr,  invert: false },
+    { lbl:'Spend',       val: '$'+lastSpend.toFixed(0),        sub: 'Yesterday', trend: tSpend, invert: true },
+    { lbl:'Avg CPL',     val: avgCPL ? '$'+avgCPL : '—',  sub: 'All time',  trend: trend(log.map(function(e){ return e.leads>0?Math.round(e.spend/e.leads):null; })), invert: true },
+    { lbl:'Total Leads', val: totalLeads,                      sub: 'Since reset', trend: tLeads, invert: false },
   ];
 
   var markerHtml = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;">';
@@ -1809,6 +1815,8 @@ function renderPerfLog(camp){
 
   rows.forEach(function(e){
     var cpl = e.leads>0 ? '$'+Math.round(e.spend/e.leads) : '—';
+    var ctrVal = e.ctr!=null ? e.ctr.toFixed(2)+'%' : (e.impr>0&&e.clicks>0 ? (e.clicks/e.impr*100).toFixed(2)+'%' : '—');
+    var ctrCls = ctrVal==='—' ? '' : (parseFloat(ctrVal)>=5 ? 'style="color:var(--green);font-weight:700;"' : parseFloat(ctrVal)>=2 ? 'style="color:var(--amber);font-weight:700;"' : 'style="color:var(--red);font-weight:700;"');
     var isCls = e.is===null||e.is===undefined?'':e.is<20?'style="color:var(--red);font-weight:700;"':e.is<40?'style="color:var(--amber);font-weight:700;"':'style="color:var(--green);font-weight:700;"';
     var qsCls = e.qs===null||e.qs===undefined?'':e.qs<5?'style="color:var(--red);font-weight:700;"':e.qs<7?'style="color:var(--amber);font-weight:700;"':'style="color:var(--green);font-weight:700;"';
     var gMismatch = e.gconv!==null&&e.gconv!==undefined&&Math.abs(e.gconv-e.leads)>1;
@@ -1820,6 +1828,7 @@ function renderPerfLog(camp){
       + '<td>'+e.clicks+'</td>'
       + '<td>$'+e.spend.toFixed(0)+'</td>'
       + '<td style="font-weight:700;">'+e.leads+'</td>'
+      + '<td '+ctrCls+'>'+ctrVal+'</td>'
       + '<td>'+cpl+'</td>'
       + '<td>'+(e.cpc!=null?'$'+e.cpc.toFixed(2):'—')+'</td>'
       + '<td '+isCls+'>'+(e.is!=null?e.is+'%':'—')+'</td>'
@@ -1901,8 +1910,9 @@ async function getPerfAI(){
   var output  = document.getElementById('perf-ai-output');
   if(!loading || !output) return;
   var noData = document.getElementById('perf-ai-no-data');
-  if(!camp.perfLog || camp.perfLog.length === 0){
+  if(!camp || !camp.perfLog || camp.perfLog.length === 0){
     loading.style.display = 'none';
+    if(output) output.style.display = 'none';
     if(noData) noData.style.display = 'block';
     return;
   }
@@ -2108,8 +2118,12 @@ function buildChecklist(camp){
   aiLoading.id = 'todo-ai-loading';
   aiLoading.textContent = 'Generating your personalized to-do list...';
   aiLoading.style.cssText = 'display:none;text-align:center;padding:14px;color:var(--muted);font-size:13px;';
+  var aiError = document.createElement('div');
+  aiError.id = 'todo-ai-error';
+  aiError.style.cssText = 'display:none;margin-top:10px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#991b1b;';
   aiBody.appendChild(aiBtn);
   aiBody.appendChild(aiLoading);
+  aiBody.appendChild(aiError);
   aiCard.appendChild(aiHead);
   aiCard.appendChild(aiBody);
   el.appendChild(aiCard);
@@ -2560,10 +2574,28 @@ async function generateTodos(){
     + 'Rules: 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Each must be specific to KCH right now.'
     + histCtx;
 
+  // Timeout safety
+  var timedOut = false;
+  var timer = setTimeout(function(){
+    timedOut = true;
+    if(loading) loading.style.display = 'none';
+    if(btn){ btn.style.display = 'flex'; }
+    var errEl = document.getElementById('todo-ai-error');
+    if(errEl){ errEl.textContent = 'Request timed out. Check your connection and try again.'; errEl.style.display = 'block'; }
+  }, 25000);
+
   try {
     var text = await callAI(prompt, 1000);
+    clearTimeout(timer);
+    if(timedOut) return;
+    // Strip markdown fences and find JSON array
     var clean = text.replace(/```json|```/g,'').trim();
+    var arrStart = clean.indexOf('[');
+    var arrEnd   = clean.lastIndexOf(']');
+    if(arrStart === -1 || arrEnd === -1) throw new Error('No JSON array in response');
+    clean = clean.slice(arrStart, arrEnd+1);
     var todos = JSON.parse(clean);
+    if(!Array.isArray(todos) || todos.length === 0) throw new Error('Empty todo list');
     await saveAnalysis(camp.id, 'todos', 'Week of '+getChicagoWeekKey()+': '+todos.map(function(t){ return '['+t.tag+'] '+t.title; }).join('; '));
     camp.aiTodos     = todos;
     camp.aiTodosWeek = getChicagoWeekKey();
@@ -2572,10 +2604,13 @@ async function generateTodos(){
     if(loading) loading.style.display = 'none';
     renderTodos(camp);
   } catch(e) {
+    clearTimeout(timer);
+    if(timedOut) return;
     if(loading) loading.style.display = 'none';
     if(btn) btn.style.display = 'flex';
     var errEl = document.getElementById('todo-ai-error');
-    if(errEl){ errEl.textContent = 'Could not generate tasks. Try again.'; errEl.style.display = 'block'; }
+    if(errEl){ errEl.textContent = 'Could not generate tasks: ' + e.message + '. Try again.'; errEl.style.display = 'block'; }
+    console.error('generateTodos error:', e);
   }
 }
 
