@@ -471,6 +471,77 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 </div>
 
 <script>
+// ── AI CALL WRAPPER ──────────────────────
+async function callAI(prompt, maxTokens){
+  maxTokens = maxTokens || 1000;
+  var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: maxTokens,
+      messages: [{role:'user', content: prompt}]
+    })
+  });
+  if(!resp.ok) throw new Error('Worker responded ' + resp.status);
+  var data = await resp.json();
+  if(data.error) throw new Error(data.error.message || 'API error');
+  return data.content && data.content[0] ? data.content[0].text : '';
+}
+
+function aiFormat(text){
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+function aiShowResult(outputEl, btnEl, text, campId, memKey){
+  if(campId && memKey) saveAnalysis(campId, memKey, text);
+  var formatted = aiFormat(text);
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);font-size:13px;line-height:1.85;color:var(--stone);';
+  wrap.innerHTML = formatted;
+  if(campId && memKey){
+    var memNote = document.createElement('div');
+    memNote.style.cssText = 'margin-top:8px;font-size:10px;color:var(--muted);text-align:right;';
+    var histCount = getAnalysisHistory(campId, memKey).length;
+    memNote.textContent = 'Saved to memory (' + histCount + ' of 4 stored)';
+    wrap.appendChild(memNote);
+  }
+  var regenRow = document.createElement('div');
+  regenRow.style.cssText = 'margin-top:10px;text-align:right;';
+  var regenBtn = document.createElement('button');
+  regenBtn.className = 'btn btn-ghost btn-sm';
+  regenBtn.textContent = 'Regenerate';
+  regenBtn.addEventListener('click', function(){
+    outputEl.style.display = 'none';
+    outputEl.innerHTML = '';
+    if(btnEl) btnEl.style.display = 'flex';
+  });
+  regenRow.appendChild(regenBtn);
+  outputEl.innerHTML = '';
+  outputEl.appendChild(wrap);
+  outputEl.appendChild(regenRow);
+  outputEl.style.display = 'block';
+}
+
+function aiError(outputEl, btnEl){
+  outputEl.innerHTML = '<div style="padding:12px 16px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not connect to AI. Check your internet and try again.</div>';
+  outputEl.style.display = 'block';
+  if(btnEl) btnEl.style.display = 'flex';
+}
+
+function aiStart(btnEl, loadingEl, outputEl){
+  if(btnEl) btnEl.style.display = 'none';
+  if(loadingEl) loadingEl.style.display = 'block';
+  if(outputEl) outputEl.style.display = 'none';
+}
+
+function aiDone(loadingEl){
+  if(loadingEl) loadingEl.style.display = 'none';
+}
+
 // ── SUPABASE CONFIG ──────────────────────
 var SB_URL = 'https://vxmuzvanuitevyciuxur.supabase.co';
 var SB_KEY = 'sb_publishable_3E5Sbhkpl5uUXg7HFEAvuw_eqPyGswx';
@@ -813,11 +884,7 @@ function renderCampaign(camp) {
       var scr = document.createElement('div');
       scr.className = 'screen' + (idx === 0 ? ' active' : '');
       scr.id = 'scr-' + tabId;
-      if(tabId === 'input'){
-        buildInput(camp, scr);
-      } else {
-        scr.innerHTML = buildScreen(tabId, camp);
-      }
+      buildScreenDOM(tabId, camp, scr);
       screenWrap.appendChild(scr);
     })(tabs[i], i);
   }
@@ -833,6 +900,8 @@ function renderCampaign(camp) {
   initChecklist(camp);
   initInput(camp);
   renderPerfLog(camp);
+  // Final AI wiring pass after all renders complete
+  setTimeout(function(){ wireAllAI(camp); }, 50);
 }
 
 // ── HELPERS ──────────────────────────────
@@ -909,6 +978,23 @@ document.getElementById('btn-add-campaign').addEventListener('click', function()
 
 
 // ── CONTENT FUNCTIONS ────────────────────
+function buildScreenDOM(id, camp, container){
+  container.innerHTML = '';
+  // All build functions now write directly into container
+  switch(id){
+    case 'input':       buildInput(camp, container); break;
+    case 'performance': buildPerformance(camp, container); break;
+    case 'recovery':    buildRecovery(camp, container); break;
+    case 'checklist':   buildChecklist(camp, container); break;
+    case 'keywords':    buildKeywords(camp, container); break;
+    case 'changes':     buildChanges(camp, container); break;
+    case 'season':      buildSeason(camp, container); break;
+    case 'signals':     buildSignals(camp, container); break;
+    default:            container.innerHTML = buildScreen(id, camp);
+  }
+  wireAllAI(camp);
+}
+
 function buildScreen(id, camp){
   if(id==='input') return buildInput(camp);
   if(id==='performance') return buildPerformance(camp);
@@ -1151,36 +1237,32 @@ function renderDILog(camp){
   card.appendChild(legend);
   el.appendChild(card);
 }
-function buildPerformance(camp){
-  var el = document.createElement('div');
+function buildPerformance(camp, container){
+  var el = container || document.createElement('div');
+  el.innerHTML = '';
 
-  // Alert
-  var alert = document.createElement('div');
-  alert.className = 'alert alert-gold';
-  el.appendChild(alert);
-
-  // Summary tiles (filled by renderPerfLog)
-  var tiles = document.createElement('div');
-  tiles.id = 'perf-summary-tiles';
-  el.appendChild(tiles);
-
-  // Daily score chart (filled by renderPerfLog)
+  // ── SCORE CHART (always visible, filled by renderPerfLog)
   var chartWrap = document.createElement('div');
   chartWrap.id = 'perf-score-chart';
   el.appendChild(chartWrap);
 
-  // Weekly table (filled by renderPerfLog)
+  // ── SUMMARY TILES (filled by renderPerfLog)
+  var tiles = document.createElement('div');
+  tiles.id = 'perf-summary-tiles';
+  el.appendChild(tiles);
+
+  // ── DAILY LOG TABLE (filled by renderPerfLog)
   var weekly = document.createElement('div');
   weekly.id = 'perf-weekly-table';
   el.appendChild(weekly);
 
-  // AI Trend Analysis
+  // ── AI TREND ANALYSIS
   var aiCard = document.createElement('div');
   aiCard.className = 'card';
-  aiCard.style.marginTop = '12px';
+  aiCard.style.marginTop = '14px';
   var aiHead = document.createElement('div');
   aiHead.className = 'card-head';
-  aiHead.innerHTML = '<h3>AI Trend Analysis</h3><p>Reads your full performance history and tells you what the trends mean for KCH in plain English.</p>';
+  aiHead.innerHTML = '<h3>AI Trend Analysis</h3><p>Reads your full performance history and tells you what the trends mean in plain English.</p>';
   var aiBody = document.createElement('div');
   aiBody.className = 'card-body';
   var aiBtn = document.createElement('button');
@@ -1204,10 +1286,10 @@ function buildPerformance(camp){
   aiCard.appendChild(aiBody);
   el.appendChild(aiCard);
 
-  // KCH Benchmarks
+  // ── KCH BENCHMARKS
   var bmCard = document.createElement('div');
   bmCard.className = 'card';
-  bmCard.style.marginTop = '12px';
+  bmCard.style.marginTop = '14px';
   var bmHead = document.createElement('div');
   bmHead.className = 'card-head';
   bmHead.innerHTML = '<h3>KCH Benchmarks</h3><p>Calibrated for premium hardscape in the KC metro market.</p>';
@@ -1220,15 +1302,13 @@ function buildPerformance(camp){
     + '<tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr>'
     + '<tr><td><strong>Cost Per Lead</strong><div class="bm-sub">Premium hardscape margins support a high CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr>'
     + '<tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr>'
-    + '<tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:800;text-align:left;">$3,000 per lead</td></tr>'
+    + '<tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:700;text-align:left;">$3,000 per lead</td></tr>'
     + '</tbody></table>';
   bmCard.appendChild(bmHead);
   bmCard.appendChild(bmBody);
   el.appendChild(bmCard);
 
-  return el.innerHTML;
 }
-
 
 // ── DAILY SCORE CALCULATOR ───────────────
 function calcDayScore(e, dayNum){
@@ -1297,262 +1377,302 @@ function renderScoreChart(camp, range){
   var el = document.getElementById('perf-score-chart');
   if(!el) return;
   el.innerHTML = '';
-  if(!camp.perfLog || camp.perfLog.length === 0) return;
 
-  // Filter log by range
   range = range || '30';
+  var hasData = camp.perfLog && camp.perfLog.length > 0;
+
+  // Always render the card shell
+  var card = document.createElement('div');
+  card.className = 'card';
+  card.style.cssText = 'margin-bottom:16px;overflow:hidden;';
+
+  // Header row
+  var headRow = document.createElement('div');
+  headRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;flex-wrap:wrap;gap:10px;';
+
+  var headLeft = document.createElement('div');
+  headLeft.innerHTML = '<div style="font-size:14px;font-weight:700;color:var(--stone);letter-spacing:-.1px;">Daily Campaign Score</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-top:2px;">0–100 per day, calibrated to recovery stage</div>';
+
+  // Range pills
+  var pills = document.createElement('div');
+  pills.style.cssText = 'display:flex;gap:4px;';
+  ['7','30','90'].forEach(function(r){
+    var pill = document.createElement('button');
+    pill.textContent = r==='7'?'7D':r==='30'?'30D':'90D';
+    var isActive = r === range;
+    pill.style.cssText = 'font-size:11px;font-weight:600;padding:4px 12px;border-radius:99px;border:1px solid '+(isActive?'var(--stone)':'var(--border)')+';cursor:pointer;background:'+(isActive?'var(--stone)':'transparent')+';color:'+(isActive?'#fff':'var(--muted)')+';transition:all .15s;font-family:inherit;';
+    pill.addEventListener('click', function(){ renderScoreChart(camp, r); });
+    pills.appendChild(pill);
+  });
+
+  headRow.appendChild(headLeft);
+  headRow.appendChild(pills);
+  card.appendChild(headRow);
+
+  if(!hasData){
+    var empty = document.createElement('div');
+    empty.style.cssText = 'padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;';
+    empty.innerHTML = '<div style="font-size:28px;margin-bottom:8px;opacity:.3;">📊</div>Log daily entries to see your score chart';
+    card.appendChild(empty);
+    el.appendChild(card);
+    return;
+  }
+
+  // Filter by range
   var now = new Date();
   var cutoff = new Date(now);
-  if(range === '7')  cutoff.setDate(now.getDate() - 7);
-  else if(range === '30') cutoff.setDate(now.getDate() - 30);
-  else if(range === '90') cutoff.setDate(now.getDate() - 90);
-  else cutoff = new Date('2000-01-01');
+  if(range==='7') cutoff.setDate(now.getDate()-7);
+  else if(range==='30') cutoff.setDate(now.getDate()-30);
+  else cutoff.setDate(now.getDate()-90);
   var cutoffStr = cutoff.toISOString().split('T')[0];
   var filteredLog = camp.perfLog.filter(function(e){ return e.date >= cutoffStr; });
+
   if(filteredLog.length === 0){
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No entries in this time range.</div>';
+    var empty2 = document.createElement('div');
+    empty2.style.cssText = 'padding:30px 20px;text-align:center;color:var(--muted);font-size:13px;';
+    empty2.textContent = 'No entries in this range.';
+    card.appendChild(empty2);
+    el.appendChild(card);
     return;
   }
 
   var resetDate = camp.resetDate || '2026-03-02';
-
-  // Calculate scores
   var scored = filteredLog.map(function(e){
-    var d0 = new Date(resetDate + 'T12:00:00');
-    var d1 = new Date(e.date    + 'T12:00:00');
-    var dayNum = Math.max(1, Math.round((d1 - d0) / 86400000) + 1);
-    return { date: e.date, dayNum: dayNum, score: calcDayScore(e, dayNum) };
+    var d0 = new Date(resetDate+'T12:00:00');
+    var d1 = new Date(e.date+'T12:00:00');
+    var dayNum = Math.max(1, Math.round((d1-d0)/86400000)+1);
+    return { date:e.date, dayNum:dayNum, score:calcDayScore(e,dayNum), entry:e };
   });
 
-  var card = document.createElement('div');
-  card.className = 'card';
-  card.style.marginBottom = '12px';
-  var head = document.createElement('div');
-  head.className = 'card-head';
-    head.innerHTML = '<h3>Daily Campaign Score</h3><p>0–100 per day, calibrated to recovery stage.</p>';
-
-  // Range selector
-  var rangeBar = document.createElement('div');
-  rangeBar.style.cssText = 'display:flex;gap:6px;padding:0 16px 12px;';
-  ['7','30','90'].forEach(function(r){
-    var rb = document.createElement('button');
-    rb.textContent = r === '7' ? 'Last 7 Days' : r === '30' ? 'Last 30 Days' : 'Last Quarter';
-    rb.style.cssText = 'font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;border:1px solid var(--border);cursor:pointer;background:'+(r===range?'var(--stone)':'var(--surface)')+';color:'+(r===range?'var(--white)':'var(--muted)')+';transition:all .15s;';
-    rb.addEventListener('click', function(){
-      renderScoreChart(camp, r);
-    });
-    rangeBar.appendChild(rb);
-  });
-  card.appendChild(head);
-  card.appendChild(rangeBar);
-
-  // SVG chart
-  var W = 600, H = 220, PAD = { top:20, right:20, bottom:40, left:40 };
-  var chartW = W - PAD.left - PAD.right;
-  var chartH = H - PAD.top  - PAD.bottom;
+  // ── SVG CHART
+  var W=600, H=200, PAD={top:24,right:20,bottom:36,left:36};
+  var chartW = W-PAD.left-PAD.right;
+  var chartH = H-PAD.top-PAD.bottom;
   var n = scored.length;
+
+  var svgWrap = document.createElement('div');
+  svgWrap.style.cssText = 'padding:16px 16px 0;';
 
   var svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.setAttribute('viewBox','0 0 '+W+' '+H);
   svg.style.cssText = 'width:100%;height:auto;display:block;';
 
-  // Background grid lines
+  // Grid lines
   [0,25,50,75,100].forEach(function(v){
     var y = PAD.top + chartH - (v/100)*chartH;
     var line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1', PAD.left); line.setAttribute('x2', PAD.left+chartW);
-    line.setAttribute('y1', y); line.setAttribute('y2', y);
-    line.setAttribute('stroke', v===0||v===100 ? '#d1cdc7' : '#ede8e1');
+    line.setAttribute('x1',PAD.left); line.setAttribute('x2',PAD.left+chartW);
+    line.setAttribute('y1',y); line.setAttribute('y2',y);
+    line.setAttribute('stroke', v===0?'#cbd5e1':'#f1f5f9');
     line.setAttribute('stroke-width','1');
     svg.appendChild(line);
-    // Y axis label
-    var txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('x', PAD.left - 6); txt.setAttribute('y', y + 4);
-    txt.setAttribute('text-anchor','end');
-    txt.setAttribute('font-size','9'); txt.setAttribute('fill','#9b8ea0');
-    txt.textContent = v;
-    svg.appendChild(txt);
+    if(v>0){
+      var txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x',PAD.left-6); txt.setAttribute('y',y+3.5);
+      txt.setAttribute('text-anchor','end');
+      txt.setAttribute('font-size','8'); txt.setAttribute('fill','#94a3b8');
+      txt.textContent = v;
+      svg.appendChild(txt);
+    }
   });
 
-  var barW = n === 1 ? 30 : Math.min(30, (chartW / n) * 0.6);
-  var step = n === 1 ? chartW / 2 : chartW / (n - 1);
+  var barW = Math.min(32, Math.max(8, (chartW/n)*0.55));
+  var step = n===1 ? 0 : chartW/(n-1);
+
+  // Gradient defs
+  var defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  ['green','amber','red'].forEach(function(name){
+    var grad = document.createElementNS('http://www.w3.org/2000/svg','linearGradient');
+    grad.setAttribute('id','grad-'+name); grad.setAttribute('x1','0'); grad.setAttribute('y1','0'); grad.setAttribute('x2','0'); grad.setAttribute('y2','1');
+    var s1 = document.createElementNS('http://www.w3.org/2000/svg','stop');
+    var s2 = document.createElementNS('http://www.w3.org/2000/svg','stop');
+    s1.setAttribute('offset','0%');
+    s2.setAttribute('offset','100%');
+    if(name==='green'){ s1.setAttribute('stop-color','#22c55e'); s2.setAttribute('stop-color','#16a34a'); }
+    else if(name==='amber'){ s1.setAttribute('stop-color','#fbbf24'); s2.setAttribute('stop-color','#d97706'); }
+    else { s1.setAttribute('stop-color','#f87171'); s2.setAttribute('stop-color','#dc2626'); }
+    grad.appendChild(s1); grad.appendChild(s2);
+    defs.appendChild(grad);
+  });
+  svg.appendChild(defs);
+
+  function gradFor(s){ return s>=75?'url(#grad-green)':s>=50?'url(#grad-amber)':'url(#grad-red)'; }
+
+  // Area fill under trend line
+  if(n>=2){
+    var areaPoints = scored.map(function(d,i){
+      var x = PAD.left+(n===1?chartW/2:i*step);
+      var y = PAD.top+chartH-(d.score/100)*chartH;
+      return x+','+y;
+    });
+    var firstX = PAD.left;
+    var lastX  = PAD.left+(n-1)*step;
+    var areaPath = 'M'+firstX+','+(PAD.top+chartH)+' L'+areaPoints.join(' L')+' L'+lastX+','+(PAD.top+chartH)+' Z';
+    var areaEl = document.createElementNS('http://www.w3.org/2000/svg','path');
+    areaEl.setAttribute('d', areaPath);
+    areaEl.setAttribute('fill','url(#grad-green)');
+    areaEl.setAttribute('opacity','0.06');
+    svg.appendChild(areaEl);
+  }
 
   // Bars
-  scored.forEach(function(d, i){
-    var x = PAD.left + (n === 1 ? chartW/2 : i * step);
-    var barH = (d.score / 100) * chartH;
-    var y = PAD.top + chartH - barH;
+  scored.forEach(function(d,i){
+    var x = PAD.left+(n===1?chartW/2:i*step);
+    var barH = Math.max(2,(d.score/100)*chartH);
+    var y = PAD.top+chartH-barH;
     var rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rect.setAttribute('x', x - barW/2);
-    rect.setAttribute('y', y);
-    rect.setAttribute('width', barW);
-    rect.setAttribute('height', barH);
-    rect.setAttribute('rx','3');
-    rect.setAttribute('fill', scoreColor(d.score));
-    rect.setAttribute('opacity','0.75');
+    rect.setAttribute('x',x-barW/2); rect.setAttribute('y',y);
+    rect.setAttribute('width',barW); rect.setAttribute('height',barH);
+    rect.setAttribute('rx','4');
+    rect.setAttribute('fill',gradFor(d.score));
+    rect.setAttribute('opacity','0.85');
     svg.appendChild(rect);
 
-    // Score label on bar
-    var lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
-    lbl.setAttribute('x', x); lbl.setAttribute('y', y - 4);
-    lbl.setAttribute('text-anchor','middle');
-    lbl.setAttribute('font-size','9'); lbl.setAttribute('font-weight','700');
-    lbl.setAttribute('fill', scoreColor(d.score));
-    lbl.textContent = d.score;
-    svg.appendChild(lbl);
+    // Score label
+    if(barW > 14){
+      var lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+      lbl.setAttribute('x',x); lbl.setAttribute('y',y-5);
+      lbl.setAttribute('text-anchor','middle');
+      lbl.setAttribute('font-size','9'); lbl.setAttribute('font-weight','700');
+      lbl.setAttribute('fill',scoreColor(d.score));
+      lbl.textContent = d.score;
+      svg.appendChild(lbl);
+    }
 
-    // X axis date label
+    // X label
     var ds = new Date(d.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
     var xlbl = document.createElementNS('http://www.w3.org/2000/svg','text');
-    xlbl.setAttribute('x', x); xlbl.setAttribute('y', PAD.top + chartH + 16);
+    xlbl.setAttribute('x',x); xlbl.setAttribute('y',PAD.top+chartH+14);
     xlbl.setAttribute('text-anchor','middle');
-    xlbl.setAttribute('font-size','9'); xlbl.setAttribute('fill','#9b8ea0');
-    xlbl.textContent = ds;
+    xlbl.setAttribute('font-size','8'); xlbl.setAttribute('fill','#94a3b8');
+    // Only show every Nth label if crowded
+    if(n<=10 || i%Math.ceil(n/10)===0) xlbl.textContent = ds;
     svg.appendChild(xlbl);
   });
 
-  // Trend line (if 2+ points)
-  if(n >= 2){
-    var pts = scored.map(function(d, i){
-      var x = PAD.left + (n === 1 ? chartW/2 : i * step);
-      var y = PAD.top + chartH - (d.score/100)*chartH;
+  // Trend line
+  if(n>=2){
+    var pts = scored.map(function(d,i){
+      var x = PAD.left+(n===1?chartW/2:i*step);
+      var y = PAD.top+chartH-(d.score/100)*chartH;
       return x+','+y;
     }).join(' ');
     var poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
-    poly.setAttribute('points', pts);
+    poly.setAttribute('points',pts);
     poly.setAttribute('fill','none');
-    poly.setAttribute('stroke','#1c1c1c');
-    poly.setAttribute('stroke-width','2');
+    poly.setAttribute('stroke','#334155');
+    poly.setAttribute('stroke-width','1.5');
     poly.setAttribute('stroke-linecap','round');
     poly.setAttribute('stroke-linejoin','round');
-    poly.setAttribute('opacity','0.4');
+    poly.setAttribute('opacity','0.5');
     svg.appendChild(poly);
 
-    // Trend line dots
-    scored.forEach(function(d, i){
-      var x = PAD.left + i * step;
-      var y = PAD.top + chartH - (d.score/100)*chartH;
-      var circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      circle.setAttribute('cx', x); circle.setAttribute('cy', y);
-      circle.setAttribute('r','3');
-      circle.setAttribute('fill','#1c1c1c');
-      circle.setAttribute('opacity','0.5');
-      svg.appendChild(circle);
+    scored.forEach(function(d,i){
+      var x = PAD.left+(n===1?chartW/2:i*step);
+      var y = PAD.top+chartH-(d.score/100)*chartH;
+      var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',x); dot.setAttribute('cy',y);
+      dot.setAttribute('r','3');
+      dot.setAttribute('fill','#fff');
+      dot.setAttribute('stroke','#334155');
+      dot.setAttribute('stroke-width','1.5');
+      svg.appendChild(dot);
     });
   }
 
-  card.appendChild(svg);
+  svgWrap.appendChild(svg);
+  card.appendChild(svgWrap);
 
-  // Score legend
-  var legend = document.createElement('div');
-  legend.style.cssText = 'padding:8px 16px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;';
-  legend.innerHTML = '<span><span style="color:#dc2626;font-weight:700;">Red</span> = under 50</span>'
-    + '<span><span style="color:#d97706;font-weight:700;">Amber</span> = 50–74</span>'
-    + '<span><span style="color:#15803d;font-weight:700;">Green</span> = 75+</span>'
-    + '<span style="color:var(--muted);">Scores adjust for recovery stage — early days are graded on a curve</span>';
-  card.appendChild(legend);
+  // Legend + avg score footer
+  var avg = Math.round(scored.reduce(function(s,d){return s+d.score;},0)/scored.length);
+  var footer = document.createElement('div');
+  footer.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-top:1px solid var(--border-lt);margin-top:12px;flex-wrap:wrap;gap:8px;';
+  footer.innerHTML = '<div style="display:flex;gap:14px;font-size:10px;color:var(--muted);">'
+    + '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#22c55e;margin-right:4px;vertical-align:middle;"></span>75+ Strong</span>'
+    + '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#fbbf24;margin-right:4px;vertical-align:middle;"></span>50–74 Okay</span>'
+    + '<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#f87171;margin-right:4px;vertical-align:middle;"></span>&lt;50 Needs work</span>'
+    + '</div>'
+    + '<div style="font-size:11px;font-weight:700;color:var(--stone);">Avg score: <span style="color:'+scoreColor(avg)+';">'+avg+'</span></div>';
+  card.appendChild(footer);
   el.appendChild(card);
 }
 
 function renderPerfLog(camp){
-  var tilesEl = document.getElementById('perf-summary-tiles');
-  var tableEl = document.getElementById('perf-weekly-table');
+  var tilesEl  = document.getElementById('perf-summary-tiles');
+  var tableEl  = document.getElementById('perf-weekly-table');
   if(!tilesEl || !tableEl) return;
+
+  // Always render chart (shows empty state if no data)
   renderScoreChart(camp);
 
   if(!camp.perfLog || camp.perfLog.length === 0){
-    tilesEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);margin-bottom:12px;">No data yet. Log daily entries in the Daily Input tab.</div>';
+    tilesEl.innerHTML = '';
     tableEl.innerHTML = '';
     return;
   }
 
-  // Totals
+  // ── SUMMARY TILES
   var totalSpend=0, totalLeads=0, totalImpr=0, totalClicks=0;
   camp.perfLog.forEach(function(e){
-    totalSpend+=e.spend; totalLeads+=e.leads; totalImpr+=e.impr;
-    totalClicks+=e.clicks;
+    totalSpend+=e.spend; totalLeads+=e.leads;
+    totalImpr+=e.impr; totalClicks+=e.clicks;
   });
-  var avgCPL = totalLeads > 0 ? Math.round(totalSpend/totalLeads) : null;
-  var ctr    = totalImpr  > 0 ? (totalClicks/totalImpr*100).toFixed(1) : null;
-  var cplCls = avgCPL===null ? 'neu' : avgCPL<150 ? 'good' : avgCPL<500 ? 'warn' : 'bad';
+  var avgCPL  = totalLeads>0 ? Math.round(totalSpend/totalLeads) : null;
+  var ctr     = totalImpr>0  ? (totalClicks/totalImpr*100).toFixed(1) : null;
+  var cplCls  = avgCPL===null?'neu':avgCPL<150?'good':avgCPL<500?'warn':'bad';
+  var ctrCls  = ctr===null?'neu':parseFloat(ctr)>=5?'good':parseFloat(ctr)>=2?'warn':'bad';
 
-  tilesEl.innerHTML = '<div class="tile-grid" style="margin-bottom:12px;">'
+  tilesEl.innerHTML = '<div class="tile-grid" style="margin-bottom:16px;">'
     + '<div class="tile neu"><div class="tile-lbl">Total Spend</div><div class="tile-val">$'+totalSpend.toFixed(0)+'</div><div class="tile-sub">'+camp.perfLog.length+' days logged</div></div>'
     + '<div class="tile neu"><div class="tile-lbl">Total Leads</div><div class="tile-val">'+totalLeads+'</div><div class="tile-sub">Calendly bookings</div></div>'
-    + '<div class="tile '+cplCls+'"><div class="tile-lbl">Avg Cost Per Lead</div><div class="tile-val">'+(avgCPL!==null?'$'+avgCPL:'\u2014')+'</div><div class="tile-sub">Max viable: $3,000</div></div>'
-    + '<div class="tile neu"><div class="tile-lbl">Avg CTR</div><div class="tile-val">'+(ctr!==null?ctr+'%':'\u2014')+'</div><div class="tile-sub">Target: above 2%</div></div>'
+    + '<div class="tile '+cplCls+'"><div class="tile-lbl">Avg CPL</div><div class="tile-val">'+(avgCPL?'$'+avgCPL:'—')+'</div><div class="tile-sub">Cost per lead</div></div>'
+    + '<div class="tile '+ctrCls+'"><div class="tile-lbl">Avg CTR</div><div class="tile-val">'+(ctr?ctr+'%':'—')+'</div><div class="tile-sub">Click-through rate</div></div>'
     + '</div>';
 
-  // Group by week (Monday start)
-  function weekKey(dateStr){
-    var d = new Date(dateStr+'T12:00:00');
-    var day = d.getDay();
-    var monday = new Date(d);
-    monday.setDate(d.getDate() - (day===0?6:day-1));
-    return monday.toISOString().split('T')[0];
-  }
-  var weeks = {}, weekOrder = [];
-  camp.perfLog.forEach(function(e){
-    var wk = weekKey(e.date);
-    if(!weeks[wk]){ weeks[wk]={spend:0,leads:0,impr:0,clicks:0,consults:0,days:0}; weekOrder.push(wk); }
-    weeks[wk].spend+=e.spend; weeks[wk].leads+=e.leads; weeks[wk].impr+=e.impr;
-    weeks[wk].clicks+=e.clicks; weeks[wk].days++;
+  // ── LOG TABLE
+  var rows = camp.perfLog.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var tbl = '<div class="card" style="margin-bottom:16px;"><div class="card-head" style="display:flex;align-items:center;justify-content:space-between;">'
+    + '<div><h3>Daily Log</h3><p>All logged entries, newest first</p></div>'
+    + '</div><div style="overflow-x:auto;"><table class="bt" style="min-width:640px;">'
+    + '<thead><tr><th>Date</th><th>Impr.</th><th>Clicks</th><th>Spend</th><th>Leads</th><th>CPL</th><th>CPC</th><th>IS%</th><th>QS</th><th>G.Conv</th><th></th></tr></thead><tbody>';
+
+  rows.forEach(function(e){
+    var cpl = e.leads>0 ? '$'+Math.round(e.spend/e.leads) : '—';
+    var isCls = e.is===null||e.is===undefined?'':e.is<20?'style="color:var(--red);font-weight:700;"':e.is<40?'style="color:var(--amber);font-weight:700;"':'style="color:var(--green);font-weight:700;"';
+    var qsCls = e.qs===null||e.qs===undefined?'':e.qs<5?'style="color:var(--red);font-weight:700;"':e.qs<7?'style="color:var(--amber);font-weight:700;"':'style="color:var(--green);font-weight:700;"';
+    var gMismatch = e.gconv!==null&&e.gconv!==undefined&&Math.abs(e.gconv-e.leads)>1;
+    var gStyle = gMismatch?'style="color:var(--red);font-weight:700;"':'';
+    var dateStr = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
+    tbl += '<tr>'
+      + '<td style="font-weight:600;white-space:nowrap;">'+dateStr+'</td>'
+      + '<td>'+e.impr+'</td>'
+      + '<td>'+e.clicks+'</td>'
+      + '<td>$'+e.spend.toFixed(0)+'</td>'
+      + '<td style="font-weight:700;">'+e.leads+'</td>'
+      + '<td>'+cpl+'</td>'
+      + '<td>'+(e.cpc!=null?'$'+e.cpc.toFixed(2):'—')+'</td>'
+      + '<td '+isCls+'>'+(e.is!=null?e.is+'%':'—')+'</td>'
+      + '<td '+qsCls+'>'+(e.qs!=null?e.qs:'—')+'</td>'
+      + '<td '+gStyle+'>'+(e.gconv!=null?e.gconv:'—')+'</td>'
+      + '<td style="white-space:nowrap;">'
+      + '<button onclick="loadDIEntry('+JSON.stringify(e).replace(/"/g,"&quot;")+')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 5px;" title="Edit">✎</button>'
+      + '<button onclick="removePerfEntry(&quot;'+e.date+'&quot;)" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--red);padding:2px 5px;" title="Remove">×</button>'
+      + '</td></tr>';
   });
-  weekOrder.sort().reverse();
 
-  var wrap = document.createElement('div');
-  wrap.className = 'card';
-  wrap.style.marginBottom = '12px';
+  tbl += '</tbody></table></div>'
+    + '<div style="padding:10px 20px;border-top:1px solid var(--border-lt);font-size:10px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;">'
+    + '<span><span style="color:var(--red);font-weight:700;">Red IS%</span> = under 20%</span>'
+    + '<span><span style="color:var(--amber);font-weight:700;">Amber IS%</span> = 20–40%</span>'
+    + '<span><span style="color:var(--green);font-weight:700;">Green IS%</span> = 40%+</span>'
+    + '<span><span style="color:var(--red);font-weight:700;">Red G.Conv</span> = mismatch with logged leads</span>'
+    + '</div></div>';
 
-  var head = document.createElement('div');
-  head.className = 'card-head';
-  head.innerHTML = '<h3>Weekly Breakdown</h3><p>Each row is one calendar week. Most recent first.</p>';
-  wrap.appendChild(head);
-
-  var scrollWrap = document.createElement('div');
-  scrollWrap.style.overflowX = 'auto';
-
-  var table = document.createElement('table');
-  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px;';
-
-  var cols   = ['Week','Days','Impr.','Clicks','Spend','Leads','Consults','CPL'];
-  var aligns = ['left','center','right','right','right','right','right','right'];
-  var thead = document.createElement('thead');
-  var hrow  = document.createElement('tr');
-  hrow.style.background = 'var(--surface)';
-  cols.forEach(function(c,i){
-    var th = document.createElement('th');
-    th.textContent = c;
-    th.style.cssText = 'text-align:'+aligns[i]+';padding:8px 12px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);';
-    hrow.appendChild(th);
-  });
-  thead.appendChild(hrow);
-  table.appendChild(thead);
-
-  var tbody = document.createElement('tbody');
-  weekOrder.forEach(function(wk){
-    var w = weeks[wk];
-    var wCPL  = w.leads > 0 ? '$'+Math.round(w.spend/w.leads) : '\u2014';
-    var wDate = new Date(wk+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    var vals  = ['Week of '+wDate, w.days+'d', w.impr.toLocaleString(), w.clicks, '$'+w.spend.toFixed(0), w.leads, w.consults, wCPL];
-    var tr = document.createElement('tr');
-    vals.forEach(function(v,i){
-      var td = document.createElement('td');
-      td.textContent = v;
-      td.style.cssText = 'padding:9px 12px;text-align:'+aligns[i]+';'+(i===0?'font-weight:700;':'font-family:monospace;');
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  scrollWrap.appendChild(table);
-  wrap.appendChild(scrollWrap);
-  tableEl.innerHTML = '';
-  tableEl.appendChild(wrap);
+  tableEl.innerHTML = tbl;
 }
 
 
-// ── AI MEMORY SYSTEM ─────────────────────
 function saveAnalysis(campId, type, text){
   var key = 'ai_history_' + campId + '_' + type;
   var history = [];
@@ -1579,73 +1699,51 @@ function buildHistoryContext(campId, type, label){
 
 async function getPerfAI(){
   var camp = getCamp(activeCampId);
-  var btn     = document.getElementById("perf-ai-btn");
-  var loading = document.getElementById("perf-ai-loading");
-  var output  = document.getElementById("perf-ai-output");
-  if(!camp.perfLog || camp.perfLog.length === 0){ alert("Log at least a few days of data first."); return; }
-  btn.style.display="none"; loading.style.display="block"; output.style.display="none";
+  var btn     = document.getElementById('perf-ai-btn');
+  var loading = document.getElementById('perf-ai-loading');
+  var output  = document.getElementById('perf-ai-output');
+  if(!camp || !camp.perfLog || camp.perfLog.length === 0){ alert('Log at least a few days of data first.'); return; }
+  aiStart(btn, loading, output);
 
   var days = getDaysFor(camp.resetDate);
   var logSummary = camp.perfLog.map(function(e){
-    var cpl = e.leads > 0 ? "$"+Math.round(e.spend/e.leads) : "no leads";
-    return e.date + ": " + e.impr + " impr, " + e.clicks + " clicks, $" + e.spend.toFixed(0) + " spend, " + e.leads + " leads, CPL " + cpl;
-  }).join("\n");
+    var cpl = e.leads > 0 ? '$'+Math.round(e.spend/e.leads) : 'no leads';
+    var extras = [];
+    if(e.cpc  != null) extras.push('CPC $'+e.cpc.toFixed(2));
+    if(e.is   != null) extras.push('IS '+e.is+'%');
+    if(e.qs   != null) extras.push('QS '+e.qs);
+    if(e.gconv!= null) extras.push('G.Conv '+e.gconv);
+    return e.date+': '+e.impr+' impr, '+e.clicks+' clicks, $'+e.spend.toFixed(0)+' spend, '+e.leads+' leads, CPL '+cpl+(extras.length?' ('+extras.join(', ')+')':'');
+  }).join('\n');
 
-  var totalSpend = 0, totalLeads = 0;
-  camp.perfLog.forEach(function(e){ totalSpend += e.spend; totalLeads += e.leads; });
-  var avgCPL = totalLeads > 0 ? Math.round(totalSpend/totalLeads) : null;
+  var totalSpend=0, totalLeads=0;
+  camp.perfLog.forEach(function(e){ totalSpend+=e.spend; totalLeads+=e.leads; });
+  var avgCPL = totalLeads>0 ? Math.round(totalSpend/totalLeads) : null;
 
-  var prompt = "You are a Google Ads analyst advising Kansas City Hardscapes, a premium hardscape contractor in KC metro serving high-income homeowners in Johnson County. Daily budget: $" + camp.budget + ". Campaign reset March 2, 2026. Currently Day " + days + " of learning phase recovery.\n\n"
-    + "DAILY PERFORMANCE LOG (chronological):\n" + logSummary + "\n\n"
-    + "TOTALS: $" + totalSpend.toFixed(0) + " total spend, " + totalLeads + " total leads, avg CPL " + (avgCPL ? "$"+avgCPL : "N/A") + "\n\n"
-    + "Write a plain-English performance summary covering:\n"
-    + "1. TREND — Is performance improving, declining, or flat? Be specific about which metrics are moving and in which direction.\n"
-    + "2. RECOVERY PROGRESS — Given this is Day " + days + " of a learning phase reset, is this data consistent with normal recovery or are there warning signs?\n"
-    + "3. WHAT STANDS OUT — One or two specific data points that are worth paying attention to (good or bad).\n"
-    + "4. NEXT WEEK — One concrete thing to watch or do based on what the data is showing.\n\n"
-    + "Write directly to the business owner. Be honest and specific. No generic advice. Keep it under 300 words."
+  var prompt = 'You are a Google Ads analyst advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. Daily budget: $'+camp.budget+'. Campaign reset '+camp.resetDate+'. Currently Day '+days+' of learning phase recovery.\n\n'
+    + 'DAILY PERFORMANCE LOG:\n'+logSummary+'\n\n'
+    + 'TOTALS: $'+totalSpend.toFixed(0)+' spend, '+totalLeads+' leads, avg CPL '+(avgCPL?'$'+avgCPL:'N/A')+'\n\n'
+    + 'Write a plain-English performance summary covering:\n'
+    + '1. TREND — Is performance improving, declining, or flat?\n'
+    + '2. RECOVERY PROGRESS — Is this consistent with normal recovery or are there warning signs?\n'
+    + '3. WHAT STANDS OUT — One or two specific data points worth attention.\n'
+    + '4. NEXT WEEK — One concrete action based on the data.\n\n'
+    + 'Write directly to the business owner. Honest and specific. Under 300 words.'
     + buildHistoryContext(camp.id, 'perf', 'performance trend analyses');
 
   try {
-    var resp = await fetch("https://kch-ai-proxy.charlie-2bb.workers.dev/", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:800, messages:[{role:"user",content:prompt}]})
-    });
-    var data = await resp.json();
-    var text = data.content && data.content[0] ? data.content[0].text : "No response.";
-    saveAnalysis(camp.id, 'perf', text);
-    var formatted = text.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\n\n/g,"<br><br>").replace(/\n/g,"<br>");
-    var outDiv = document.createElement("div");
-    outDiv.style.cssText = "padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);font-size:13px;line-height:1.85;color:var(--stone);";
-    outDiv.innerHTML = formatted;
-    var histCount = getAnalysisHistory(camp.id, 'perf').length;
-    var memNote = document.createElement('div');
-    memNote.style.cssText = 'margin-top:8px;font-size:10px;color:var(--muted);text-align:right;';
-    memNote.textContent = 'Saved to memory (' + histCount + ' of 4 stored)';
-    var regenRow = document.createElement("div");
-    regenRow.style.cssText = "margin-top:10px;text-align:right;";
-    var regenBtn = document.createElement("button");
-    regenBtn.className = "btn btn-ghost";
-    regenBtn.style.fontSize = "11px";
-    regenBtn.textContent = "Regenerate";
-    regenBtn.addEventListener("click", function(){ btn.style.display="block"; output.style.display="none"; });
-    regenRow.appendChild(regenBtn);
-    output.innerHTML = "";
-    output.appendChild(outDiv);
-    output.appendChild(memNote);
-    output.appendChild(regenRow);
-    output.style.display = "block";
+    var text = await callAI(prompt, 800);
+    aiDone(loading);
+    aiShowResult(output, btn, text, camp.id, 'perf');
   } catch(e) {
-    output.innerHTML = "<div style=\"padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);\">Could not connect. Check your internet and try again.</div>";
-    output.style.display = "block";
-    btn.style.display = "block";
+    aiDone(loading);
+    aiError(output, btn);
   }
-  loading.style.display = "none";
 }
 
-function buildRecovery(camp){
-  return ''
+
+function buildRecovery(camp, container){
+  var _html = ''
 
   // Phase status card
   +'<div class="card">'
@@ -1744,38 +1842,13 @@ function buildRecovery(camp){
   }).join('')
   +'<div class="dont-row" style="border-bottom:none;"><div class="dont-icon" style="color:#d97706;">!</div><div class="dont-text"><strong>Judge performance by impressions in days 1–7</strong><p>Impressions are erratic while the algorithm tests different auction strategies. Conversions are the only signal that matters during this window.</p></div></div>'
   +'</div></div>';
+  if(container){ container.innerHTML = _html; }
+
 }
 
-// ── HEALTH CHECK ──────────────────────────
-function buildHealth(camp){
-  var isSearch = camp.type === 'search';
-  +'<div class="card"><div class="card-head"><h3>Weekly Numbers</h3><p>Log in to Google Ads → click your Campaign → pull from the summary table.</p></div>'
-  +'<div class="card-body">'
-  +'<div class="input-grid" style="margin-bottom:10px;">'
-  +'<div class="mf"><label>Clicks</label><input type="number" id="h-clicks" placeholder="e.g. 18" min="0" oninput="runH()"></div>'
-  +'<div class="mf"><label>Impressions</label><input type="number" id="h-impr" placeholder="e.g. 420" min="0" oninput="runH()"></div>'
-  +'<div class="mf"><label>Ad Spend</label><div class="sym" data-s="$"><input type="number" id="h-spend" placeholder="e.g. 280" min="0" oninput="runH()"></div></div>'
-  +'<div class="mf"><label>Qualified Leads</label><input type="number" id="h-leads" placeholder="e.g. 2" min="0" oninput="runH()"></div>'
-  +'</div>'
-  +(isSearch?'<div class="mf"><label>Leads That Booked a Consultation</label><input type="number" id="h-consults" placeholder="e.g. 1" min="0" oninput="runH()"></div>':'')
-  +'</div></div>'
-  +'<div id="h-results" style="display:none;">'
-  +'<div class="tile-grid" id="h-tiles"></div>'
-  +'<div class="jcalc" id="h-jcalc"></div>'
-  +'<div class="verdict" id="h-verdict"></div>'
-  +'<div class="card" style="margin-top:12px;"><div class="card-head"><h3>Metric Breakdown</h3><p>What each number means for KCH.</p></div><div style="overflow-x:auto;"><table class="bt" id="h-bt"></table></div></div>'
-  +'<div class="card" style="margin-top:12px;"><div class="card-head"><h3>AI Strategic Recommendation</h3><p>Get a personalized action plan based on your numbers, calibrated to Kansas City Hardscapes.</p></div>'
-  +'<div class="card-body">'
-  +'<button class="btn btn-gold" id="ai-rec-btn" onclick="getAIRec()" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Generate Recommendation for This Week</button>'
-  +'<div id="ai-rec-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Analyzing your campaign data...</div>'
-  +'<div id="ai-rec-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'
-  +'</div></div></div>'
-  +(isSearch?'<div class="card"><div class="card-head"><h3>KCH Benchmarks</h3><p>Calibrated for premium hardscape in the KC metro market.</p></div><div style="overflow-x:auto;"><table class="bm"><thead><tr><th>Metric</th><th class="c-bad">Concern</th><th class="c-warn">Okay</th><th class="c-good">Strong</th></tr></thead><tbody><tr><td><strong>Click Rate (CTR)</strong><div class="bm-sub">Hardscape is niche — low volume is normal</div></td><td class="c-bad">&lt;2%</td><td class="c-warn">2–5%</td><td class="c-good">&gt;5%</td></tr><tr><td><strong>Cost Per Click</strong><div class="bm-sub">High-intent KC keywords cost more — worth it</div></td><td class="c-bad">&gt;$25</td><td class="c-warn">$10–25</td><td class="c-good">&lt;$10</td></tr><tr><td><strong>Cost Per Lead</strong><div class="bm-sub">Premium hardscape margins support a high CPL</div></td><td class="c-bad">&gt;$500</td><td class="c-warn">$150–500</td><td class="c-good">&lt;$150</td></tr><tr><td><strong>Lead to Consultation Rate</strong><div class="bm-sub">Are booked leads actually showing up?</div></td><td class="c-bad">&lt;30%</td><td class="c-warn">30–60%</td><td class="c-good">&gt;60%</td></tr><tr><td><strong>Maximum Viable CPL</strong><div class="bm-sub">Based on 30% close rate, 20% margin</div></td><td colspan="3" class="c-good" style="font-size:15px;font-weight:800;text-align:left;">$3,000 per lead</td></tr></tbody></table></div></div>':'');
-}
-
-// ── CHECKLIST ─────────────────────────────
-function buildChecklist(camp){
-  var el = document.createElement('div');
+function buildChecklist(camp, container){
+  var el = container || document.createElement('div');
+  el.innerHTML = '';
 
   // Done banner
   var banner = document.createElement('div');
@@ -1943,7 +2016,7 @@ function buildNegatives(camp){
 }
 
 // ── SEASON ────────────────────────────────
-function buildSeason(){
+function buildSeason(camp, container){
   var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var seas=[{s:'cold',l:'Off',h:10},{s:'cold',l:'Off',h:10},{s:'warm',l:'Ramp',h:55},{s:'hot',l:'Peak',h:100},{s:'hot',l:'Peak',h:100},{s:'hot',l:'Peak',h:95},{s:'hot',l:'Peak',h:90},{s:'hot',l:'Peak',h:85},{s:'warm',l:'Taper',h:60},{s:'warm',l:'Wind Down',h:35},{s:'cold',l:'Low',h:15},{s:'cold',l:'Off',h:10}];
   var curMo=new Date().getMonth();
@@ -1964,7 +2037,7 @@ function buildSeason(){
 }
 
 // ── SIGNALS ───────────────────────────────
-function buildSignals(){
+function buildSignals(camp, container){
   return '<div class="alert alert-neutral"><strong>These warning signs are specific to low-volume, high-ticket local service businesses.</strong> Generic Google Ads advice is calibrated for e-commerce. Kansas City Hardscapes operates completely differently.</div>'
   +'<div class="slbl">Signals Your Ads Are Working Against You</div>'
   +'<div class="card">'
@@ -2195,6 +2268,336 @@ function runH(){
 // ══════════════════════════════════════════
 // AI RECOMMENDATIONS
 // ══════════════════════════════════════════
+async function getAIRec(){
+  var camp = getCamp(activeCampId);
+  if(!camp){ return; }
+  var btn     = document.getElementById('ai-rec-btn');
+  var loading = document.getElementById('ai-rec-loading');
+  var output  = document.getElementById('ai-rec-output');
+  aiStart(btn, loading, output);
+
+  var days = getDaysFor(camp.resetDate);
+  var perfSummary = 'No data logged.';
+  if(camp.perfLog && camp.perfLog.length > 0){
+    var recent = camp.perfLog.slice(-5);
+    var ts=0,tl=0,ti=0;
+    recent.forEach(function(e){ ts+=e.spend; tl+=e.leads; ti+=e.impr; });
+    perfSummary = 'Last '+recent.length+' days: '+ti+' impr, $'+ts.toFixed(0)+' spend, '+tl+' leads';
+  }
+
+  var prompt = 'You are a Google Ads recovery specialist advising Kansas City Hardscapes. Day '+days+' of learning phase recovery. $'+camp.budget+'/day budget.\n\n'
+    + 'RECENT PERFORMANCE: '+perfSummary+'\n\n'
+    + 'Based on where this campaign is in recovery, give one specific, actionable recommendation for what to do or watch for right now. '
+    + 'Be direct. One paragraph max. No generic advice.';
+
+  try {
+    var text = await callAI(prompt, 400);
+    aiDone(loading);
+    aiShowResult(output, btn, text, null, null);
+  } catch(e) {
+    aiDone(loading);
+    aiError(output, btn);
+  }
+}
+
+
+async function generateTodos(){
+  var camp = getCamp(activeCampId);
+  if(!camp){ return; }
+  var btn     = document.getElementById('todo-ai-btn');
+  var loading = document.getElementById('todo-ai-loading');
+  if(btn) btn.style.display = 'none';
+  if(loading) loading.style.display = 'block';
+
+  var days = getDaysFor(camp.resetDate);
+  var perfSummary = 'No performance data logged yet.';
+  if(camp.perfLog && camp.perfLog.length > 0){
+    var recent = camp.perfLog.slice(-7);
+    var ts=0,tl=0;
+    recent.forEach(function(e){ ts+=e.spend; tl+=e.leads; });
+    perfSummary = 'Last '+recent.length+' days: $'+ts.toFixed(0)+' spend, '+tl+' leads, avg CPL '+(tl>0?'$'+Math.round(ts/tl):'N/A');
+  }
+
+  var recentChanges = (camp.changes||[]).slice(0,3).map(function(c){
+    return c.date+' — '+c.cat+': '+c.what;
+  }).join('\n') || 'No recent changes.';
+
+  var pendingNegs = (camp.negatives||[]).filter(function(n){ return !n.added; }).map(function(n){ return n.text; }).join(', ') || 'None';
+
+  var histCtx = buildHistoryContext(camp.id, 'todos', 'weekly to-do analyses');
+
+  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
+    + 'RECENT PERFORMANCE: '+perfSummary+'\n'
+    + 'RECENT CHANGES:\n'+recentChanges+'\n'
+    + 'PENDING NEGATIVES: '+pendingNegs+'\n\n'
+    + 'Generate a focused to-do list for this week. Return ONLY valid JSON array, no markdown, no explanation:\n'
+    + '[{"tag":"Priority","title":"...","desc":"...","note":"..."},...]\n\n'
+    + 'Rules: 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Each must be specific to KCH right now — not generic advice.'
+    + histCtx;
+
+  try {
+    var text = await callAI(prompt, 1000);
+    var clean = text.replace(/```json|```/g,'').trim();
+    var todos = JSON.parse(clean);
+    saveAnalysis(camp.id, 'todos', 'Week of '+getChicagoWeekKey()+': '+todos.map(function(t){ return '['+t.tag+'] '+t.title; }).join('; '));
+    camp.aiTodos     = todos;
+    camp.aiTodosWeek = getChicagoWeekKey();
+    camp.checklistDone = [];
+    save('campaigns', campaigns);
+    if(loading) loading.style.display = 'none';
+    renderTodos(camp);
+  } catch(e) {
+    if(loading) loading.style.display = 'none';
+    if(btn) btn.style.display = 'flex';
+    var errEl = document.getElementById('todo-ai-error');
+    if(errEl){ errEl.textContent = 'Could not generate tasks. Try again.'; errEl.style.display = 'block'; }
+  }
+}
+
+
+function wireKWButtons(camp){
+  // Sub-tab switching
+  var kwSubBtn  = document.getElementById('kw-subtab-btn');
+  var negSubBtn = document.getElementById('neg-subtab-btn');
+  var baseStyle   = 'padding:10px 20px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;color:var(--muted);';
+  var activeStyle = 'color:var(--stone);border-bottom-color:var(--gold);';
+  if(kwSubBtn && negSubBtn){
+    var kwPane  = kwSubBtn.parentElement.nextElementSibling;
+    var negPane = negSubBtn.parentElement.nextElementSibling
+                    ? negSubBtn.parentElement.nextElementSibling.nextElementSibling : null;
+    // Better: find by scanning siblings
+    var screens = document.querySelectorAll('#scr-keywords > div');
+    // kwPane is first div after subBar, negPane is second
+    var subBar = document.getElementById('kw-subtab-btn').parentElement;
+    var panes  = [];
+    var sib = subBar.nextElementSibling;
+    while(sib){ panes.push(sib); sib = sib.nextElementSibling; }
+    var kwP  = panes[0];
+    var negP = panes[1];
+    if(kwP && negP){
+      kwSubBtn.addEventListener('click', function(){
+        kwP.style.display  = 'block';
+        negP.style.display = 'none';
+        kwSubBtn.style.cssText  = baseStyle + activeStyle;
+        negSubBtn.style.cssText = baseStyle;
+      });
+      negSubBtn.addEventListener('click', function(){
+        kwP.style.display  = 'none';
+        negP.style.display = 'block';
+        negSubBtn.style.cssText = baseStyle + activeStyle;
+        kwSubBtn.style.cssText  = baseStyle;
+      });
+    }
+  }
+
+  // Add keyword button
+  var addBtn = document.getElementById('kw-add-btn');
+  if(addBtn) addBtn.addEventListener('click', addKW);
+
+  // Filter buttons
+  var filters = document.querySelectorAll('#kw-filters .kw-filter-btn');
+  filters.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      filterKW(btn.getAttribute('data-filter'), btn);
+    });
+  });
+
+  // AI keyword button
+  var aiBtn = document.getElementById('kw-ai-btn');
+  if(aiBtn) aiBtn.addEventListener('click', getKWRec);
+
+  // Negatives buttons
+  var negAdd  = document.getElementById('neg-add-btn');
+  var negCopy = document.getElementById('neg-copy-btn');
+  var negAI   = document.getElementById('neg-ai-btn');
+  var negIn   = document.getElementById('neg-input');
+  if(negAdd)  negAdd.addEventListener('click', addNeg);
+  if(negCopy) negCopy.addEventListener('click', copyNegs);
+  if(negAI)   negAI.addEventListener('click', getNegRec);
+  if(negIn)   negIn.addEventListener('keydown', function(e){ if(e.key==='Enter') addNeg(); });
+}
+
+function addKW(){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var text=document.getElementById('kw-text').value.trim();
+  if(!text){alert('Please enter a keyword.');return;}
+  if(!camp.keywords)camp.keywords=[];
+  camp.keywords.push({id:Date.now(),text:text,match:document.getElementById('kw-match').value,status:document.getElementById('kw-status').value,notes:document.getElementById('kw-notes').value.trim(),added:new Date().toISOString().split('T')[0]});
+  save('campaigns',campaigns);
+  document.getElementById('kw-text').value='';document.getElementById('kw-notes').value='';
+  var m=document.getElementById('kw-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
+  renderKW(camp);
+}
+function updateKWStatus(id,val){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var kw=camp.keywords.find(function(k){return k.id===id;});
+  if(kw){kw.status=val;save('campaigns',campaigns);renderKW(camp);}
+}
+function updateKWNotes(id,val){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  var kw=camp.keywords.find(function(k){return k.id===id;});
+  if(kw){kw.notes=val;save('campaigns',campaigns);}
+}
+function removeKW(id){
+  var camp=getCamp(activeCampId);if(!camp)return;
+  camp.keywords=camp.keywords.filter(function(k){return k.id!==id;});
+  save('campaigns',campaigns);renderKW(camp);
+}
+function filterKW(f,btn){
+  var camp=getCamp(activeCampId);if(camp){camp.kwFilter=f;save('campaigns',campaigns);}
+  document.querySelectorAll('.kw-filter-btn').forEach(function(b){b.classList.remove('kw-f-active');});
+  btn.classList.add('kw-f-active');
+  renderKW(camp);
+}
+function renderKW(camp){
+  var list=document.getElementById('kw-list');if(!list)return;
+  if(!camp||!camp.keywords||camp.keywords.length===0){
+    list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords yet. Add your first keyword above.</div>';return;
+  }
+  var filter=camp.kwFilter||'all';
+  var filtered=filter==='all'?camp.keywords:camp.keywords.filter(function(k){return k.status===filter;});
+  if(filtered.length===0){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No keywords with status "'+filter+'".</div>';return;
+  }
+  list.innerHTML=filtered.map(function(kw){
+    var sc=kwStatusColors[kw.status]||{bg:'#f5f3ef',border:'var(--border)',text:'var(--muted)'};
+    var mc=kwMatchColors[kw.match]||{bg:'#f5f3ef',color:'var(--muted)'};
+    var opts=['Active','Testing','Paused','Removed'].map(function(s){return'<option value="'+s+'"'+(kw.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    return'<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;">'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--stone);margin-bottom:6px;">'+kw.text+'</div>'
+      +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;">'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+mc.bg+';color:'+mc.color+';">'+kw.match+' Match</span>'
+      +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:'+sc.bg+';color:'+sc.text+';border:1px solid '+sc.border+';">'+kw.status+'</span>'
+      +'<span style="font-size:10px;color:var(--muted);">Added '+kw.added+'</span>'
+      +'</div>'
+      +'<input type="text" value="'+kw.notes.replace(/"/g,'&quot;')+'" placeholder="Add a performance note..." onchange="updateKWNotes('+kw.id+',this.value)" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;color:var(--muted);background:var(--surface);outline:none;">'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">'
+      +'<select onchange="updateKWStatus('+kw.id+',this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:700;color:var(--stone);background:var(--surface);outline:none;cursor:pointer;">'+opts+'</select>'
+      +'<button onclick="removeKW('+kw.id+')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;">Remove</button>'
+      +'</div></div></div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// CHANGE LOG
+// ══════════════════════════════════════════
+var catColors={'Bidding Strategy':{bg:'#fce7f3',color:'#9d174d'},'Budget':{bg:'#fffbeb',color:'#78350f'},'Keywords':{bg:'#f0faf5',color:'#155e3e'},'Negative Keywords':{bg:'#f0faf5',color:'#155e3e'},'Ad Copy':{bg:'#eff4ff',color:'#1e3a8a'},'Landing Page':{bg:'#eff4ff',color:'#1e3a8a'},'Targeting':{bg:'#fff5f5',color:'#991b1b'},'Conversion Tracking':{bg:'#fce7f3',color:'#9d174d'},'Ad Schedule':{bg:'#fffbeb',color:'#78350f'},'Other':{bg:'#f5f3ef',color:'var(--muted)'}};
+
+function setChangeDateDefault(){
+  var el=document.getElementById('cl-date');if(!el)return;
+  var t=new Date();
+  el.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+}
+
+function wireCLButtons(camp){
+  // AI wiring handled by wireAllAI
+}
+
+async function getChangeAI(){
+  var camp = getCamp(activeCampId);
+  if(!camp || !camp.changes || camp.changes.length === 0){ alert('Log a change first.'); return; }
+  var btn     = document.getElementById('cl-ai-btn');
+  var loading = document.getElementById('cl-ai-loading');
+  var output  = document.getElementById('cl-ai-output');
+  aiStart(btn, loading, output);
+
+  var latest = camp.changes[0];
+  var days   = getDaysFor(camp.resetDate);
+  var allChanges = camp.changes.slice(0,5).map(function(c){
+    return c.date+' ['+c.cat+']: '+c.what+(c.outcome?' → Outcome: '+c.outcome:'');
+  }).join('\n');
+
+  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
+    + 'LATEST CHANGE:\nDate: '+latest.date+'\nCategory: '+latest.cat+'\nWhat: '+latest.what+'\nWhy: '+latest.why+'\nExpected: '+latest.expected+'\n\n'
+    + 'RECENT CHANGE HISTORY:\n'+allChanges+'\n\n'
+    + 'Analyze this change and provide:\n'
+    + 'IMPACT: What effect will this have on the campaign and when?\n'
+    + 'RISK: Any downside risks given where this campaign is right now?\n'
+    + 'WATCH FOR: One metric to monitor over the next 7 days.\n\n'
+    + 'Be specific to this exact change and campaign stage. No filler. Under 200 words.'
+    + buildHistoryContext(camp.id, 'changes', 'change log analyses');
+
+  try {
+    var text = await callAI(prompt, 600);
+    aiDone(loading);
+    aiShowResult(output, btn, text, camp.id, 'changes');
+  } catch(e) {
+    aiDone(loading);
+    aiError(output, btn);
+  }
+}
+
+
+async function getKWRec(){
+  var camp = getCamp(activeCampId);
+  if(!camp){ return; }
+  var btn     = document.getElementById('kw-ai-btn');
+  var loading = document.getElementById('kw-ai-loading');
+  var output  = document.getElementById('kw-ai-output');
+  aiStart(btn, loading, output);
+
+  var kwList = (camp.keywords||[]).map(function(k){
+    return '['+k.match+'] '+k.text+' ('+k.status+')';
+  }).join('\n') || 'No keywords logged yet.';
+
+  var prompt = 'You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. Conversions come through a Calendly booking page.\n\n'
+    + 'CURRENT KEYWORD LIST:\n'+kwList+'\n\n'
+    + 'Daily budget: $'+camp.budget+'. Day '+getDaysFor(camp.resetDate)+' of recovery.\n\n'
+    + 'Provide keyword strategy covering:\n'
+    + '1. CUT — which keywords (if any) should be paused or removed and why\n'
+    + '2. ADD — 3-5 specific new keywords worth testing with match type recommendation\n'
+    + '3. MATCH TYPE STRATEGY — should KCH be running more Exact or Phrase match right now and why\n'
+    + '4. QUICK WIN — one change to make this week\n\n'
+    + 'Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type.'
+    + buildHistoryContext(camp.id, 'kw', 'keyword strategy analyses');
+
+  try {
+    var text = await callAI(prompt, 800);
+    aiDone(loading);
+    aiShowResult(output, btn, text, camp.id, 'kw');
+  } catch(e) {
+    aiDone(loading);
+    aiError(output, btn);
+  }
+}
+
+
+async function getNegRec(){
+  var camp = getCamp(activeCampId);
+  if(!camp){ return; }
+  var btn     = document.getElementById('neg-ai-btn');
+  var loading = document.getElementById('neg-ai-loading');
+  var output  = document.getElementById('neg-ai-output');
+  aiStart(btn, loading, output);
+
+  var negList = (camp.negatives||[]).map(function(n){ return n.text+(n.added?' ✓':''); }).join(', ') || 'None yet.';
+  var kwList  = (camp.keywords||[]).map(function(k){ return k.text; }).join(', ') || 'None logged.';
+
+  var prompt = 'You are a Google Ads negative keyword specialist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro targeting high-income homeowners.\n\n'
+    + 'CURRENT NEGATIVE KEYWORDS: '+negList+'\n\n'
+    + 'ACTIVE KEYWORDS: '+kwList+'\n\n'
+    + 'Daily budget: $'+camp.budget+'.\n\n'
+    + 'Identify 5-8 negative keywords NOT already on the list that KCH should add immediately. Focus on:\n'
+    + '- DIY/budget/cheap intent searches\n'
+    + '- Job seeker searches\n'
+    + '- Unrelated local searches\n'
+    + '- Competitor or product-only searches\n\n'
+    + 'Format as a simple list. For each one, one sentence on why it wastes budget for KCH.';
+
+  try {
+    var text = await callAI(prompt, 600);
+    aiDone(loading);
+    aiShowResult(output, btn, text, null, null);
+  } catch(e) {
+    aiDone(loading);
+    aiError(output, btn);
+  }
+}
+
+
 async function getAIRec(){
   var camp=getCamp(activeCampId);
   var clicks=parseFloat(document.getElementById('h-clicks').value)||0;
@@ -2560,290 +2963,78 @@ function setChangeDateDefault(){
 }
 
 function wireCLButtons(camp){
-  var aiBtn = document.getElementById('cl-ai-btn');
-  if(aiBtn) aiBtn.addEventListener('click', getChangeAI);
+  // AI wiring handled by wireAllAI
 }
 
 async function getChangeAI(){
   var camp = getCamp(activeCampId);
-  if(!camp || !camp.changes || camp.changes.length === 0){
-    alert('Log a change first.');
-    return;
-  }
+  if(!camp || !camp.changes || camp.changes.length === 0){ alert('Log a change first.'); return; }
   var btn     = document.getElementById('cl-ai-btn');
   var loading = document.getElementById('cl-ai-loading');
   var output  = document.getElementById('cl-ai-output');
-  btn.style.display = 'none';
-  loading.style.display = 'block';
-  output.style.display = 'none';
+  aiStart(btn, loading, output);
 
   var latest = camp.changes[0];
   var days   = getDaysFor(camp.resetDate);
-  var log    = (camp.perfLog || []).slice(-7).map(function(e){
-    var cpl = e.leads > 0 ? '$'+Math.round(e.spend/e.leads) : 'no leads';
-    var xtra = [];
-    if(e.cpc  != null) xtra.push('CPC $'+e.cpc.toFixed(2));
-    if(e.is   != null) xtra.push('IS '+e.is+'%');
-    if(e.qs   != null) xtra.push('QS '+e.qs);
-    if(e.gconv!= null && Math.abs(e.gconv - e.leads) > 0.5) xtra.push('G.Conv '+e.gconv+' vs '+e.leads+' actual');
-    return e.date+': '+e.impr+' impr, '+e.clicks+' clicks, $'+e.spend.toFixed(0)+' spend, '+e.leads+' leads, CPL '+cpl+(xtra.length?', '+xtra.join(', '):'');
-  }).join('\n') || 'No performance data logged yet.';
+  var allChanges = camp.changes.slice(0,5).map(function(c){
+    return c.date+' ['+c.cat+']: '+c.what+(c.outcome?' → Outcome: '+c.outcome:'');
+  }).join('\n');
 
-  var prevChanges = camp.changes.slice(1, 4).map(function(c){
-    return c.date+': ['+c.cat+'] '+c.what;
-  }).join('\n') || 'None';
-
-  var changeHistCtx = buildHistoryContext(camp.id, 'changes', 'change log analyses');
-  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro serving high-income homeowners in Johnson County. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
-    + 'THE CHANGE JUST LOGGED:\n'
-    + 'Date: '+latest.date+'\n'
-    + 'Category: '+latest.cat+'\n'
-    + 'What: '+latest.what+'\n'
-    + 'Why: '+(latest.why||'Not specified')+'\n'
-    + 'Expected outcome: '+(latest.expected||'Not specified')+'\n\n'
-    + 'RECENT PERFORMANCE (last 7 days):\n'+log+'\n\n'
-    + 'PREVIOUS CHANGES:\n'+prevChanges+'\n\n'
-    + 'Analyze this change and respond with:\n'
-    + '1. VERDICT: Smart Move / Reasonable Risk / Caution / Red Flag\n'
-    + '2. REASONING: 2-3 sentences on why, specific to KCH and where the campaign is right now\n'
-    + '3. WATCH FOR: one specific thing to monitor in the next 7 days\n\n'
-    + 'Be direct. No generic advice.'
+  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
+    + 'LATEST CHANGE:\nDate: '+latest.date+'\nCategory: '+latest.cat+'\nWhat: '+latest.what+'\nWhy: '+latest.why+'\nExpected: '+latest.expected+'\n\n'
+    + 'RECENT CHANGE HISTORY:\n'+allChanges+'\n\n'
+    + 'Analyze this change and provide:\n'
+    + 'IMPACT: What effect will this have on the campaign and when?\n'
+    + 'RISK: Any downside risks given where this campaign is right now?\n'
+    + 'WATCH FOR: One metric to monitor over the next 7 days.\n\n'
+    + 'Be specific to this exact change and campaign stage. No filler. Under 200 words.'
+    + buildHistoryContext(camp.id, 'changes', 'change log analyses');
 
   try {
-    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:600, messages:[{role:'user',content:prompt}]})
-    });
-    var data = await resp.json();
-    var text = data.content && data.content[0] ? data.content[0].text : 'No response.';
-    var formatted = text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n\n/g, '<br><br>')
-      .replace(/\n/g, '<br>');
-
-    // Color-code the verdict
-    var verdictColor = '#1c1c1c';
-    if(text.includes('Smart Move'))    verdictColor = '#155e3e';
-    if(text.includes('Reasonable Risk')) verdictColor = '#78350f';
-    if(text.includes('Caution'))        verdictColor = '#92400e';
-    if(text.includes('Red Flag'))       verdictColor = '#991b1b';
-
-    var outDiv = document.createElement('div');
-    outDiv.style.cssText = 'padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);';
-    outDiv.innerHTML = formatted;
-
-    var regenRow = document.createElement('div');
-    regenRow.style.cssText = 'margin-top:10px;text-align:right;';
-    var regenBtn = document.createElement('button');
-    regenBtn.className = 'btn btn-ghost';
-    regenBtn.style.fontSize = '11px';
-    regenBtn.textContent = 'Re-analyze';
-    regenBtn.addEventListener('click', function(){ btn.style.display='block'; output.style.display='none'; });
-    regenRow.appendChild(regenBtn);
-
-    output.innerHTML = '';
-    output.appendChild(outDiv);
-    output.appendChild(regenRow);
-    output.style.display = 'block';
+    var text = await callAI(prompt, 600);
+    aiDone(loading);
+    aiShowResult(output, btn, text, camp.id, 'changes');
   } catch(e) {
-    output.innerHTML = '<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not connect. Try again.</div>';
-    output.style.display = 'block';
-    btn.style.display = 'block';
+    aiDone(loading);
+    aiError(output, btn);
   }
-  loading.style.display = 'none';
-}
-
-function addChange(){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var what=document.getElementById('cl-what').value.trim();
-  if(!what){alert('Please describe what changed.');return;}
-  if(!camp.changes)camp.changes=[];
-  camp.changes.unshift({id:Date.now(),date:document.getElementById('cl-date').value,cat:document.getElementById('cl-cat').value,what:what,why:document.getElementById('cl-why').value.trim(),expected:document.getElementById('cl-expected').value.trim(),outcome:''});
-  save('campaigns',campaigns);
-  ['cl-what','cl-why','cl-expected'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
-  var m=document.getElementById('cl-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
-  renderCL(camp);
-  wireCLButtons(camp);
-}
-function updateOutcome(id,val){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var ch=camp.changes.find(function(c){return c.id===id;});
-  if(ch){ch.outcome=val;save('campaigns',campaigns);}
-}
-function removeChange(id){
-  if(!confirm('Remove this entry?'))return;
-  var camp=getCamp(activeCampId);if(!camp)return;
-  camp.changes=camp.changes.filter(function(c){return c.id!==id;});
-  save('campaigns',campaigns);renderCL(camp);
-}
-function renderCL(camp){
-  var list=document.getElementById('cl-list');if(!list)return;
-  if(!camp||!camp.changes||camp.changes.length===0){
-    list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No changes logged yet.</div>';return;
-  }
-  list.innerHTML=camp.changes.map(function(c){
-    var cc=catColors[c.cat]||{bg:'#f5f3ef',color:'var(--muted)'};
-    var ds=c.date?new Date(c.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
-    return'<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:10px;">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px;flex-wrap:wrap;">'
-      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-      +'<span style="font-size:13px;font-weight:700;color:var(--stone);">'+ds+'</span>'
-      +'<span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:99px;background:'+cc.bg+';color:'+cc.color+';">'+c.cat+'</span>'
-      +'</div>'
-      +'<button onclick="removeChange('+c.id+')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">Remove</button>'
-      +'</div>'
-      +'<div style="font-size:13px;font-weight:700;color:var(--stone);margin-bottom:6px;">'+c.what+'</div>'
-      +(c.why?'<div style="font-size:12px;color:var(--muted);margin-bottom:4px;"><span style="font-weight:700;color:var(--stone);">Why:</span> '+c.why+'</div>':'')
-      +(c.expected?'<div style="font-size:12px;color:var(--muted);margin-bottom:8px;"><span style="font-weight:700;color:var(--stone);">Expected:</span> '+c.expected+'</div>':'')
-      +'<div><label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);display:block;margin-bottom:4px;">Actual Outcome (fill in later)</label>'
-      +'<input type="text" value="'+(c.outcome||'').replace(/"/g,'&quot;')+'" placeholder="What actually happened after this change..." onchange="updateOutcome('+c.id+',this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;color:var(--stone);background:var(--surface);outline:none;"></div>'
-      +'</div>';
-  }).join('');
-}
-
-// ══════════════════════════════════════════
-// NEGATIVES
-// ══════════════════════════════════════════
-function addNeg(){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  var val=document.getElementById('neg-input').value.trim().toLowerCase();
-  if(!val)return;
-  if(!camp.negatives)camp.negatives=[];
-  if(camp.negatives.some(function(n){return n.text===val;})){alert('Already in your list.');return;}
-  camp.negatives.unshift({text:val,added:false});
-  save('campaigns',campaigns);
-  document.getElementById('neg-input').value='';
-  var m=document.getElementById('neg-saved');if(m){m.style.display='inline';setTimeout(function(){m.style.display='none';},2000);}
-  renderNG(camp);
-}
-function toggleNeg(camp,idx){
-  if(!camp||!camp.negatives)return;
-  camp.negatives[idx].added=!camp.negatives[idx].added;
-  save('campaigns',campaigns);renderNG(camp);
-}
-function removeNeg(idx){
-  var camp=getCamp(activeCampId);if(!camp)return;
-  camp.negatives.splice(idx,1);save('campaigns',campaigns);renderNG(camp);
-}
-function copyNegs(){
-  var camp=getCamp(activeCampId);if(!camp||!camp.negatives)return;
-  var text=camp.negatives.map(function(n){return n.text;}).join('\n');
-  navigator.clipboard.writeText(text).then(function(){
-    var btn=event.target;var orig=btn.textContent;btn.textContent='Copied!';
-    setTimeout(function(){btn.textContent=orig;},2000);
-  }).catch(function(){alert('Copy failed — try selecting the list manually.');});
-}
-function renderNG(camp){
-  var list=document.getElementById('neg-list');if(!list)return;
-  var nc=document.getElementById('neg-count');
-  if(!camp||!camp.negatives){if(nc)nc.textContent='';list.innerHTML='';return;}
-  var added=camp.negatives.filter(function(n){return n.added;}).length;
-  if(nc)nc.textContent=added+' of '+camp.negatives.length+' added to Google Ads';
-  if(camp.negatives.length===0){list.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px;background:var(--white);border-radius:10px;border:1px solid var(--border);">No negative keywords yet.</div>';return;}
-  var pending=camp.negatives.map(function(n,i){return{n:n,i:i};}).filter(function(x){return !x.n.added;});
-  var done=camp.negatives.map(function(n,i){return{n:n,i:i};}).filter(function(x){return x.n.added;});
-  function rowHTML(x){
-    var n=x.n,i=x.i;
-    var bg=n.added?'var(--green-lt)':'var(--white)';
-    var cb=n.added?'var(--green)':'var(--border)';
-    var cbg=n.added?'var(--green)':'var(--white)';
-    var fw=n.added?'400':'600';
-    var fc=n.added?'var(--muted)':'var(--stone)';
-    var td=n.added?'line-through':'none';
-    var sc=n.added?'var(--green)':'var(--muted)';
-    var st=n.added?'Added in Ads':'Pending';
-    var campRef="getCamp('"+activeCampId+"')";
-    return'<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #f5f3ef;background:'+bg+';cursor:pointer;" onclick="toggleNeg('+campRef+','+i+');">'
-      +'<div style="width:20px;height:20px;min-width:20px;border-radius:4px;border:2px solid '+cb+';background:'+cbg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-      +(n.added?'<span style="color:#fff;font-size:11px;font-weight:800;">&#10003;</span>':'')+'</div>'
-      +'<div style="flex:1;font-size:13px;font-weight:'+fw+';color:'+fc+';text-decoration:'+td+';">'+n.text+'</div>'
-      +'<div style="font-size:10px;font-weight:700;color:'+sc+';">'+st+'</div>'
-      +'<button onclick="event.stopPropagation();removeNeg('+i+');" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 6px;flex-shrink:0;">&#10005;</button>'
-      +'</div>';
-  }
-  var html='<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden;">';
-  if(pending.length){html+='<div style="padding:8px 16px;background:var(--surface);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Still to add in Google Ads — '+pending.length+' remaining</div>';pending.forEach(function(x){html+=rowHTML(x);});}
-  if(done.length){html+='<div style="padding:8px 16px;background:var(--green-lt);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--green);border-top:1px solid var(--green-border);border-bottom:1px solid var(--green-border);">Added to Google Ads — '+done.length+' complete</div>';done.forEach(function(x){html+=rowHTML(x);});}
-  html+='</div>';list.innerHTML=html;
 }
 
 
-// ══════════════════════════════════════════
-// AI KEYWORD STRATEGY
-// ══════════════════════════════════════════
 async function getKWRec(){
-  var kwHistCtx = buildHistoryContext(activeCampId || '', 'kw', 'keyword strategy analyses');
   var camp = getCamp(activeCampId);
-  var btn = document.getElementById('kw-ai-btn');
+  if(!camp){ return; }
+  var btn     = document.getElementById('kw-ai-btn');
   var loading = document.getElementById('kw-ai-loading');
-  var output = document.getElementById('kw-ai-output');
-  btn.style.display='none'; loading.style.display='block'; output.style.display='none';
+  var output  = document.getElementById('kw-ai-output');
+  aiStart(btn, loading, output);
 
-  var active = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Active';}).map(function(k){return '"'+k.text+'" ('+k.match+' match)'+(k.notes?' — '+k.notes:'');}).join('\n') : 'None logged';
-  var testing = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Testing';}).map(function(k){return '"'+k.text+'" ('+k.match+' match)';}).join(', ') : 'None';
-  var paused = camp.keywords ? camp.keywords.filter(function(k){return k.status==='Paused'||k.status==='Removed';}).map(function(k){return '"'+k.text+'" — '+k.notes;}).join('\n') : 'None';
-  var negList = camp.negatives ? camp.negatives.map(function(n){return n.text+(n.added?' (added)':' (pending)');}).join(', ') : 'None';
-  var days = getDaysSinceReset(camp);
-  var recentChanges = camp.changes ? camp.changes.slice(0,3).map(function(c){return c.date+': '+c.what;}).join('; ') : 'None';
+  var kwList = (camp.keywords||[]).map(function(k){
+    return '['+k.match+'] '+k.text+' ('+k.status+')';
+  }).join('\n') || 'No keywords logged yet.';
 
-  var prompt = "You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. Conversions come through a Calendly booking page.\n\n"
-    + "CAMPAIGN: " + camp.name + "\n"
-    + "STATUS: Day " + days + " of learning phase recovery (reset March 2, 2026)\n"
-    + "DAILY BUDGET: $" + camp.budget + "\n"
-    + "RECENT CHANGES: " + recentChanges + "\n\n"
-    + "CURRENT KEYWORD INVENTORY:\n"
-    + "Active keywords:\n" + active + "\n\n"
-    + "Testing keywords: " + testing + "\n\n"
-    + "Paused/Removed keywords:\n" + paused + "\n\n"
-    + "Negative keywords: " + negList + "\n\n"
-    + "Based on this full picture, provide a keyword strategy recommendation that covers:\n"
-    + "1. KEEP — which active keywords to protect and why\n"
-    + "2. CUT OR PAUSE — any active keywords that are likely wasting budget for a high-ticket hardscape business\n"
-    + "3. ADD — 5-8 specific keywords to test next, with recommended match type and the intent behind each\n"
-    + "4. MATCH TYPE STRATEGY — given the $" + camp.budget + "/day budget, should KCH be running more Exact or Phrase match right now and why\n\n"
-    + "Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type. Not generic advice — this is a niche, high-ticket local business."
-    + kwHistCtx;
+  var prompt = 'You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. Conversions come through a Calendly booking page.\n\n'
+    + 'CURRENT KEYWORD LIST:\n'+kwList+'\n\n'
+    + 'Daily budget: $'+camp.budget+'. Day '+getDaysFor(camp.resetDate)+' of recovery.\n\n'
+    + 'Provide keyword strategy covering:\n'
+    + '1. CUT — which keywords (if any) should be paused or removed and why\n'
+    + '2. ADD — 3-5 specific new keywords worth testing with match type recommendation\n'
+    + '3. MATCH TYPE STRATEGY — should KCH be running more Exact or Phrase match right now and why\n'
+    + '4. QUICK WIN — one change to make this week\n\n'
+    + 'Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type.'
+    + buildHistoryContext(camp.id, 'kw', 'keyword strategy analyses');
 
   try {
-    var resp = await fetch('https://kch-ai-proxy.charlie-2bb.workers.dev/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:1200, messages:[{role:'user', content:prompt}]})
-    });
-    var data = await resp.json();
-    var text = data.content && data.content[0] ? data.content[0].text : 'No response.';
-    var formatted = text
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n\n/g,'<br><br>')
-      .replace(/\n/g,'<br>');
-    var outDiv = document.createElement('div');
-    outDiv.style.cssText = 'padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);';
-    outDiv.innerHTML = formatted;
-    var regenDiv = document.createElement('div');
-    regenDiv.style.cssText = 'margin-top:10px;text-align:right;';
-    var regenBtn = document.createElement('button');
-    regenBtn.className = 'btn btn-ghost';
-    regenBtn.style.fontSize = '11px';
-    regenBtn.textContent = 'Regenerate';
-    regenBtn.addEventListener('click', function(){ btn.style.display='block'; output.style.display='none'; });
-    regenDiv.appendChild(regenBtn);
-    output.innerHTML = '';
-    output.appendChild(outDiv);
-    output.appendChild(regenDiv);
-    output.style.display = 'block';
+    var text = await callAI(prompt, 800);
+    aiDone(loading);
+    aiShowResult(output, btn, text, camp.id, 'kw');
   } catch(e) {
-    output.innerHTML = '<div style="padding:12px;background:var(--red-lt);border-radius:8px;border:1px solid var(--red-border);font-size:12px;color:var(--red);">Could not generate recommendation. Check your connection and try again.</div>';
-    output.style.display = 'block';
-    btn.style.display = 'block';
+    aiDone(loading);
+    aiError(output, btn);
   }
-  loading.style.display = 'none';
 }
 
-// ══════════════════════════════════════════
-// AI NEGATIVE KEYWORD RECOMMENDATIONS
-// ══════════════════════════════════════════
+
 async function getNegRec(){
   var camp = getCamp(activeCampId);
   var btn = document.getElementById('neg-ai-btn');
