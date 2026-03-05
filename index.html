@@ -1957,7 +1957,7 @@ async function getPerfAI(){
       output.innerHTML = aiFormat(text);
       output.style.display = 'block';
     }
-    saveAnalysis(camp.id, 'perf', text);
+    await saveAnalysis(camp.id, 'perf', text);
   } catch(e) {
     clearTimeout(timer);
     if(timedOut) return;
@@ -2564,7 +2564,7 @@ async function generateTodos(){
     var text = await callAI(prompt, 1000);
     var clean = text.replace(/```json|```/g,'').trim();
     var todos = JSON.parse(clean);
-    saveAnalysis(camp.id, 'todos', 'Week of '+getChicagoWeekKey()+': '+todos.map(function(t){ return '['+t.tag+'] '+t.title; }).join('; '));
+    await saveAnalysis(camp.id, 'todos', 'Week of '+getChicagoWeekKey()+': '+todos.map(function(t){ return '['+t.tag+'] '+t.title; }).join('; '));
     camp.aiTodos     = todos;
     camp.aiTodosWeek = getChicagoWeekKey();
     camp.checklistDone = [];
