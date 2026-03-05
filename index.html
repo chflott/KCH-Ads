@@ -73,7 +73,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 
 /* ── DASHBOARD ── */
 #page-home{min-height:100vh;}
-.dash-wrap{padding:32px 28px;max-width:1100px;}
+.dash-wrap{padding:32px 28px;max-width:1100px;margin:0 auto;}
 .dash-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;}
 .dash-header h2{font-size:22px;font-weight:700;color:var(--stone);letter-spacing:-.4px;}
 .dash-header p{font-size:12px;color:var(--muted);margin-top:4px;}
@@ -198,7 +198,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .tab-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0;}
 
 /* Content area */
-.wrap{padding:24px 28px 80px;max-width:860px;}
+.wrap{padding:24px 28px 80px;max-width:900px;margin:0 auto;}
 .screen{display:none;}
 .screen.active{display:block;}
 
@@ -471,9 +471,35 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 </div>
 
 <script>
-// ── STORAGE ──────────────────────────────
+// ── SUPABASE CONFIG ──────────────────────
+var SB_URL = 'https://vxmuzvanuitevyciuxur.supabase.co';
+var SB_KEY = 'sb_publishable_3E5Sbhkpl5uUXg7HFEAvuw_eqPyGswx';
+
+async function sbGet(table, eq){
+  var url = SB_URL + '/rest/v1/' + table + '?select=*';
+  if(eq) url += '&' + eq.col + '=eq.' + encodeURIComponent(eq.val);
+  var r = await fetch(url, {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+  return r.ok ? r.json() : [];
+}
+async function sbUpsert(table, row){
+  var r = await fetch(SB_URL+'/rest/v1/'+table, {
+    method:'POST',
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+    body: JSON.stringify(row)
+  });
+  return r.ok;
+}
+async function sbDelete(table, eq){
+  var url = SB_URL+'/rest/v1/'+table+'?'+eq.col+'=eq.'+encodeURIComponent(eq.val);
+  var r = await fetch(url, {method:'DELETE', headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+  return r.ok;
+}
+
+// ── LOCAL STORAGE (fallback + AI memory) ─
 function save(key, val) {
   try { localStorage.setItem('kch_' + key, JSON.stringify(val)); } catch(e) {}
+  // Also sync to Supabase async
+  if(key === 'campaigns') syncCampaignsToSB(val);
 }
 function load(key, def) {
   try {
@@ -481,6 +507,58 @@ function load(key, def) {
     return (v !== null) ? JSON.parse(v) : def;
   } catch(e) { return def; }
 }
+
+// ── SUPABASE SYNC ─────────────────────────
+async function syncCampaignsToSB(camps){
+  try {
+    for(var i=0; i<camps.length; i++){
+      var c = camps[i];
+      await sbUpsert('campaigns', {
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        budget: c.budget,
+        status: c.status,
+        reset_date: c.resetDate,
+        data: JSON.stringify(c)
+      });
+    }
+  } catch(e){ console.warn('Supabase sync failed:', e); }
+}
+
+async function loadFromSB(){
+  try {
+    var rows = await sbGet('campaigns');
+    if(!rows || rows.length === 0) return null;
+    return rows.map(function(r){ return JSON.parse(r.data); });
+  } catch(e){ return null; }
+}
+
+async function initFromSB(){
+  // Show loading indicator
+  var grid = document.getElementById('campaign-grid');
+  if(grid) grid.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:13px;">Loading campaigns...</div>';
+  
+  var sbCamps = await loadFromSB();
+  if(sbCamps && sbCamps.length > 0){
+    campaigns = sbCamps;
+    // Ensure default KCH campaign exists
+    var hasKCH = campaigns.some(function(c){ return c.id === 'kch-search-001'; });
+    if(!hasKCH) campaigns.unshift(DEFAULT_CAMPAIGN);
+    // Save to localStorage as cache
+    localStorage.setItem('kch_campaigns', JSON.stringify(campaigns));
+  } else {
+    // No Supabase data — check localStorage, then default
+    var local = load('campaigns', null);
+    if(local && local.length > 0){
+      campaigns = local;
+      // Push local data up to Supabase
+      await syncCampaignsToSB(campaigns);
+    }
+  }
+  renderHome();
+}
+
 
 // ── DATA ─────────────────────────────────
 var DEFAULT_CAMPAIGN = {
@@ -546,7 +624,7 @@ function showHome() {
   document.getElementById('hdr-back').style.display = 'none';
   document.getElementById('hdr-campaign-name').style.display = 'none';
   activeCampId = null;
-  renderHome();
+  initFromSB();
 }
 
 function showCampaign(id) {
