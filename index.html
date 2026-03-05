@@ -875,6 +875,13 @@ function renderCampaign(camp) {
         btn.classList.add('active');
         var scr = document.getElementById('scr-' + tabId);
         if (scr) scr.classList.add('active');
+        // Re-render data-driven tabs on every open
+        var c = getCamp(activeCampId);
+        if(!c) return;
+        if(tabId === 'performance'){ renderPerfLog(c); setTimeout(function(){ wireAllAI(c); getPerfAI(); }, 80); }
+        if(tabId === 'checklist')  { initChecklist(c); }
+        if(tabId === 'keywords')   { renderKW(c); wireKWButtons(c); }
+        if(tabId === 'changes')    { renderCL(c); wireCLButtons(c); }
       });
       tabBar.appendChild(btn);
 
