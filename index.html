@@ -881,7 +881,7 @@ function renderCampaign(camp) {
         if(!c) return;
         if(tabId === 'performance'){
           renderPerfLog(c);
-          loadAnalysisFromSB(c.id, 'perf').then(function(){
+          if(c && c.id) loadAnalysisFromSB(c.id, 'perf').then(function(){
             setTimeout(function(){ wireAllAI(c);
               var out = document.getElementById('perf-ai-output');
               if(!out || out.innerHTML.trim() === '') getPerfAI();
@@ -1917,6 +1917,10 @@ async function saveAnalysis(campId, type, text){
       updated_at: new Date().toISOString()
     });
   } catch(e){ /* Supabase unavailable, localStorage copy is fine */ }
+}
+
+function checkWarnings(camp){
+  // Placeholder — warnings system not yet implemented
 }
 
 async function loadAnalysisFromSB(campId, type){
