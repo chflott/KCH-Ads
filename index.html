@@ -1856,7 +1856,7 @@ function renderPerfLog(camp){
   var tbl = '<div class="card" style="margin-bottom:16px;"><div class="card-head" style="display:flex;align-items:center;justify-content:space-between;">'
     + '<div><h3>Daily Log</h3><p>All logged entries, newest first</p></div>'
     + '</div><div style="overflow-x:auto;"><table class="bt" style="min-width:640px;">'
-    + '<thead><tr><th>Date</th><th>Impr.</th><th>Clicks</th><th>Spend</th><th>Leads</th><th>CPL</th><th>CPC</th><th>IS%</th><th>QS</th><th>G.Conv</th><th></th></tr></thead><tbody>';
+    + '<thead><tr><th style="text-align:left;">Date</th><th style="text-align:right;">Impr.</th><th style="text-align:right;">Clicks</th><th style="text-align:right;">Spend</th><th style="text-align:right;">Leads</th><th style="text-align:right;">CTR</th><th style="text-align:right;">CPL</th><th style="text-align:right;">CPC</th><th style="text-align:right;">IS%</th><th style="text-align:right;">QS</th><th style="text-align:right;">G.Conv</th><th></th></tr></thead><tbody>';
 
   rows.forEach(function(e){
     var cpl = e.leads>0 ? '$'+Math.round(e.spend/e.leads) : '—';
@@ -1869,15 +1869,15 @@ function renderPerfLog(camp){
     var dateStr = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
     tbl += '<tr>'
       + '<td style="font-weight:600;white-space:nowrap;">'+dateStr+'</td>'
-      + '<td>'+e.impr+'</td>'
-      + '<td>'+e.clicks+'</td>'
-      + '<td>$'+e.spend.toFixed(0)+'</td>'
-      + '<td style="font-weight:700;">'+e.leads+'</td>'
-      + '<td '+ctrCls+'>'+ctrVal+'</td>'
-      + '<td>'+cpl+'</td>'
-      + '<td>'+(e.cpc!=null?'$'+e.cpc.toFixed(2):'—')+'</td>'
-      + '<td '+isCls+'>'+(e.is!=null?e.is+'%':'—')+'</td>'
-      + '<td '+qsCls+'>'+(e.qs!=null?e.qs:'—')+'</td>'
+      + '<td style="text-align:right;">'+e.impr+'</td>'
+      + '<td style="text-align:right;">'+e.clicks+'</td>'
+      + '<td style="text-align:right;">$'+e.spend.toFixed(0)+'</td>'
+      + '<td style="text-align:right;font-weight:700;">'+e.leads+'</td>'
+      + '<td style="text-align:right;" '+ctrCls+'>'+ctrVal+'</td>'
+      + '<td style="text-align:right;">'+cpl+'</td>'
+      + '<td style="text-align:right;">'+(e.cpc!=null?'$'+e.cpc.toFixed(2):'—')+'</td>'
+      + '<td style="text-align:right;" '+isCls+'>'+(e.is!=null?e.is+'%':'—')+'</td>'
+      + '<td style="text-align:right;" '+qsCls+'>'+(e.qs!=null?e.qs:'—')+'</td>'
       + '<td '+gStyle+'>'+(e.gconv!=null?e.gconv:'—')+'</td>'
       + '<td style="white-space:nowrap;">'
       + '<button onclick="loadDIEntry('+JSON.stringify(e).replace(/"/g,"&quot;")+')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 5px;" title="Edit">✎</button>'
@@ -2642,10 +2642,10 @@ async function generateTodos(){
     if(btn){ btn.style.display = 'flex'; }
     var errEl = document.getElementById('todo-ai-error');
     if(errEl){ errEl.textContent = 'Request timed out. Check your connection and try again.'; errEl.style.display = 'block'; }
-  }, 25000);
+  }, 45000);
 
   try {
-    var text = await callAI(prompt, 1000);
+    var text = await callAI(prompt, 1500);
     clearTimeout(timer);
     if(timedOut) return;
     // Strip markdown fences and find JSON array
