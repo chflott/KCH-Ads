@@ -1926,7 +1926,7 @@ function checkWarnings(camp){
 async function loadAnalysisFromSB(campId, type){
   var key = 'ai_history_' + campId + '_' + type;
   try {
-    var rows = await sbGet('ai_memory', {id: key});
+    var rows = await sbGet('ai_memory', {col:'id', val: key});
     if(rows && rows.length > 0){
       var history = JSON.parse(rows[0].history || '[]');
       localStorage.setItem(key, JSON.stringify(history));
@@ -2661,12 +2661,16 @@ async function generateTodos(){
     var todos = JSON.parse(clean);
     if(!Array.isArray(todos) || todos.length === 0) throw new Error('Empty todo list');
     await saveAnalysis(camp.id, 'todos', 'Week of '+getChicagoWeekKey()+': '+todos.map(function(t){ return '['+t.tag+'] '+t.title; }).join('; '));
-    camp.aiTodos     = todos;
-    camp.aiTodosWeek = getChicagoWeekKey();
-    camp.checklistDone = [];
+    // Update the live campaigns array entry directly
+    var liveCamp = getCamp(camp.id);
+    if(liveCamp){
+      liveCamp.aiTodos      = todos;
+      liveCamp.aiTodosWeek  = getChicagoWeekKey();
+      liveCamp.checklistDone = [];
+    }
     save('campaigns', campaigns);
     if(loading) loading.style.display = 'none';
-    renderTodos(camp);
+    renderTodos(liveCamp || camp);
   } catch(e) {
     clearTimeout(timer);
     if(timedOut) return;
