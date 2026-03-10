@@ -888,7 +888,7 @@ function renderCampaign(camp) {
             }, 80);
           });
         }
-        if(tabId === 'checklist')  { initChecklist(c); }
+        if(tabId === 'checklist')  { initChecklist(c); setTimeout(function(){ wireAllAI(c); }, 50); }
         if(tabId === 'keywords')   { renderKW(c); wireKWButtons(c); }
         if(tabId === 'changes')    { renderCL(c); wireCLButtons(c); }
       });
@@ -1607,169 +1607,214 @@ function renderTrendChart(camp){
     return;
   }
 
-  var W = 680, H = 260, PAD = {t:18, r:24, b:48, l:52};
+  var W = 700, H = 280, PAD = {t:28, r:32, b:52, l:58};
   var CW = W - PAD.l - PAD.r;
   var CH = H - PAD.t - PAD.b;
   var N  = log.length;
 
-  // Scale helpers
-  function scaleX(i){ return PAD.l + (i / (N-1)) * CW; }
-  function scaleY(val, min, max){ return PAD.t + CH - ((val - min) / (Math.max(max - min, 1))) * CH; }
-  function nice(arr){ return arr.filter(function(v){ return v !== null && v !== undefined && !isNaN(v); }); }
+  function sx(i){ return PAD.l + (i / Math.max(N-1,1)) * CW; }
+  function sy(v, mx){ return PAD.t + CH - (v / Math.max(mx,1)) * CH; }
+  function nice(arr){ return arr.filter(function(v){ return v != null && !isNaN(v) && v > 0; }); }
 
-  var imprs   = log.map(function(e){ return e.impr || 0; });
-  var spends  = log.map(function(e){ return e.spend || 0; });
-  var leads   = log.map(function(e){ return e.leads || 0; });
-  var isList  = log.map(function(e){ return (e.is !== null && e.is !== undefined) ? e.is : null; });
+  var imprs  = log.map(function(e){ return e.impr  || 0; });
+  var spends = log.map(function(e){ return e.spend  || 0; });
+  var leads  = log.map(function(e){ return e.leads  || 0; });
+  var isList = log.map(function(e){ return e.is != null ? e.is : null; });
 
-  var maxImpr  = Math.max.apply(null, imprs) || 1;
-  var maxSpend = Math.max.apply(null, spends) || 1;
-  var maxLeads = Math.max.apply(null, leads) || 1;
-  var maxIS    = 100;
+  var maxI = Math.max.apply(null, imprs)  || 1;
+  var maxS = Math.max.apply(null, spends) || 1;
 
-  // Detect trends
+  // Linear regression trend
   function trend(arr){
-    var v = nice(arr);
+    var v = arr.filter(function(x){ return x != null && !isNaN(x); });
     if(v.length < 2) return 'flat';
-    var first = v.slice(0, Math.ceil(v.length/2)).reduce(function(a,b){return a+b;},0) / Math.ceil(v.length/2);
-    var last  = v.slice(Math.floor(v.length/2)).reduce(function(a,b){return a+b;},0)  / Math.ceil(v.length/2);
-    var pct   = ((last - first) / (Math.abs(first) || 1)) * 100;
-    return pct > 8 ? 'up' : pct < -8 ? 'down' : 'flat';
-  }
-  var tImpr  = trend(imprs);
-  var tSpendT = trend(spends);
-  var tLeads = trend(leads);
-
-  function arrow(t){ return t==='up' ? '↑' : t==='down' ? '↓' : '→'; }
-  function tColor(t, invert){ 
-    if(invert) return t==='up'?'#ef4444':t==='down'?'#22c55e':'#6b7280';
-    return t==='up'?'#22c55e':t==='down'?'#ef4444':'#6b7280'; 
+    var n=v.length, sx2=0, sy2=0, sxy=0, sx1=0;
+    v.forEach(function(y,x){ sx1+=x; sy2+=y; sxy+=x*y; sx2+=x*x; });
+    var slope = (n*sxy - sx1*sy2) / Math.max(n*sx2 - sx1*sx1, 0.001);
+    var avg = sy2/n;
+    var pct = avg > 0 ? (slope/avg)*100 : 0;
+    return pct > 5 ? 'up' : pct < -5 ? 'down' : 'flat';
   }
 
-  function makeLine(vals, minV, maxV, color, dash){
-    var pts = [];
-    vals.forEach(function(v, i){
-      pts.push(scaleX(i) + ',' + scaleY(v, minV, maxV));
+  var tI = trend(imprs);
+  var tS = trend(spends);
+  var tL = trend(leads);
+
+  // Colors driven by trend
+  function lineColor(t, invert){
+    if(invert){ return t==='up'?'#ef4444': t==='down'?'#22c55e':'#94a3b8'; }
+    return t==='up'?'#22c55e': t==='down'?'#ef4444':'#6366f1';
+  }
+  function fillColor(t, invert){
+    if(invert){ return t==='up'?'rgba(239,68,68,0.07)': t==='down'?'rgba(34,197,94,0.07)':'rgba(148,163,184,0.05)'; }
+    return t==='up'?'rgba(34,197,94,0.07)': t==='down'?'rgba(239,68,68,0.07)':'rgba(99,102,241,0.06)';
+  }
+  function tileColor(t, invert){
+    if(invert){ return t==='up'?'#ef4444': t==='down'?'#22c55e':'#6b7280'; }
+    return t==='up'?'#22c55e': t==='down'?'#ef4444':'#6b7280';
+  }
+  function arrow(t){ return t==='up'?'↑': t==='down'?'↓':'→'; }
+
+  // Smooth bezier path
+  function bezierPath(vals, maxV){
+    var pts = vals.map(function(v,i){ return [sx(i), sy(v,maxV)]; });
+    var d = 'M'+pts[0][0]+','+pts[0][1];
+    for(var i=0; i<pts.length-1; i++){
+      var cx = (pts[i][0]+pts[i+1][0])/2;
+      d += ' C'+cx+','+pts[i][1]+' '+cx+','+pts[i+1][1]+' '+pts[i+1][0]+','+pts[i+1][1];
+    }
+    return d;
+  }
+
+  function makeArea(vals, maxV, fc){
+    var d = bezierPath(vals, maxV);
+    return '<path d="'+d+' L'+sx(N-1)+','+(PAD.t+CH)+' L'+PAD.l+','+(PAD.t+CH)+' Z" fill="'+fc+'"/>';
+  }
+  function makeLine(vals, maxV, sc, dash, w){
+    return '<path d="'+bezierPath(vals,maxV)+'" fill="none" stroke="'+sc+'" stroke-width="'+(w||2.5)+'" stroke-linecap="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+'/>';
+  }
+
+  // Smart labels: only first, last, peak, valley — series-aware offset to avoid overlap
+  // usedLabels tracks {x, y} of already-placed labels so we can shift conflicting ones
+  var usedLabels = [];
+  function makeDots(vals, maxV, color, forceAbove){
+    var hi = Math.max.apply(null,vals), lo = Math.min.apply(null,vals);
+    var out = '';
+    vals.forEach(function(v,i){
+      var x = sx(i), y = sy(v,maxV);
+      var isFirst = i===0, isLast = i===N-1;
+      var isPeak = v===hi && i>0 && i<N-1;
+      var isValley = v===lo && N>3 && i>0 && i<N-1;
+      var showLabel = isFirst||isLast||isPeak||isValley;
+      var r = showLabel ? 4 : 2.5;
+      var fill = showLabel ? 'white' : color;
+      out += '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+fill+'" stroke="'+color+'" stroke-width="2"/>';
+      if(showLabel){
+        var lbl = maxV===maxS ? '$'+v.toFixed(0) : String(v);
+        // Preferred position: above for peaks/first, below for valleys/last
+        var wantAbove = forceAbove !== undefined ? forceAbove : (isPeak || isFirst);
+        var lblY = wantAbove ? y-13 : y+19;
+        // Check if any existing label is too close (within 18px x, 14px y)
+        var conflict = usedLabels.some(function(u){ return Math.abs(u.x-x)<20 && Math.abs(u.y-lblY)<14; });
+        if(conflict){ lblY = wantAbove ? y+19 : y-13; } // flip side
+        // Still conflict? nudge further
+        conflict = usedLabels.some(function(u){ return Math.abs(u.x-x)<20 && Math.abs(u.y-lblY)<14; });
+        if(conflict){ lblY = wantAbove ? y-26 : y+32; }
+        usedLabels.push({x:x, y:lblY});
+        out += '<rect x="'+(x-18)+'" y="'+(lblY-10)+'" width="36" height="13" rx="3" fill="white" opacity="0.85"/>';
+        out += '<text x="'+x+'" y="'+lblY+'" text-anchor="middle" font-size="10" fill="'+color+'" font-weight="700">'+lbl+'</text>';
+      }
     });
-    return '<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"'+(dash?' stroke-dasharray="'+dash+'"':'')+'/>';
+    return out;
   }
 
-  function makeArea(vals, minV, maxV, color){
-    var pts = vals.map(function(v,i){ return scaleX(i)+','+scaleY(v,minV,maxV); });
-    var bottom = 'L'+scaleX(N-1)+','+(PAD.t+CH)+' L'+PAD.l+','+(PAD.t+CH)+' Z';
-    return '<path d="M'+pts.join(' L')+' '+bottom+'" fill="'+color+'" opacity="0.07"/>';
+  // Lead markers: vertical amber line + badge at top
+  function makeLeadMarkers(){
+    var out = '';
+    leads.forEach(function(v,i){
+      if(v<=0) return;
+      var x = sx(i);
+      out += '<line x1="'+x+'" y1="'+PAD.t+'" x2="'+x+'" y2="'+(PAD.t+CH)+'" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.5"/>';
+      out += '<circle cx="'+x+'" cy="'+(PAD.t+7)+'" r="7" fill="#f59e0b" stroke="white" stroke-width="1.5"/>';
+      out += '<text x="'+x+'" y="'+(PAD.t+11)+'" text-anchor="middle" font-size="8" fill="white" font-weight="800">'+v+'</text>';
+    });
+    return out;
   }
 
-  function makeDots(vals, minV, maxV, color){
-    return vals.map(function(v, i){
-      var x = scaleX(i), y = scaleY(v, minV, maxV);
-      var lbl = i === vals.length-1 || i === 0;
-      var txt = lbl ? '<text x="'+(x)+'" y="'+(y-9)+'" text-anchor="middle" font-size="10" fill="'+color+'" font-weight="700">'+v+'</text>' : '';
-      return '<circle cx="'+x+'" cy="'+y+'" r="3.5" fill="white" stroke="'+color+'" stroke-width="2"/>'+txt;
-    }).join('');
-  }
-
-  // Lead markers — diamonds
-  function makeLeadMarkers(vals, minV, maxV){
-    return vals.map(function(v, i){
-      if(v <= 0) return '';
-      var x = scaleX(i), y = scaleY(v, minV, maxV);
-      var s = 7;
-      return '<polygon points="'+x+','+(y-s)+' '+(x+s)+','+y+' '+x+','+(y+s)+' '+(x-s)+','+y+'" fill="#f59e0b" stroke="#d97706" stroke-width="1.5"/>'
-        + '<text x="'+x+'" y="'+(y-s-5)+'" text-anchor="middle" font-size="10" fill="#d97706" font-weight="800">'+v+'✓</text>';
-    }).join('');
-  }
-
-  // IS% dots (only where available)
+  // IS% as connected dots
   function makeISDots(){
-    return isList.map(function(v, i){
-      if(v === null) return '';
-      var x = scaleX(i), y = scaleY(v, 0, maxIS);
-      var col = v < 20 ? '#ef4444' : v < 40 ? '#f59e0b' : '#22c55e';
-      return '<circle cx="'+x+'" cy="'+y+'" r="4" fill="'+col+'" opacity="0.9"/>'
-        + '<text x="'+(x)+'" y="'+(y-8)+'" text-anchor="middle" font-size="9" fill="'+col+'" font-weight="700">'+v+'%</text>';
-    }).join('');
+    var pts = [];
+    isList.forEach(function(v,i){ if(v!=null) pts.push([i,v]); });
+    if(pts.length<2) return '';
+    var out = '';
+    for(var i=0; i<pts.length-1; i++){
+      out += '<line x1="'+sx(pts[i][0])+'" y1="'+sy(pts[i][1],100)+'" x2="'+sx(pts[i+1][0])+'" y2="'+sy(pts[i+1][1],100)+'" stroke="#10b981" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.8"/>';
+    }
+    pts.forEach(function(p,idx){
+      var x=sx(p[0]), y=sy(p[1],100), v=p[1];
+      var col = v<20?'#ef4444':v<40?'#f59e0b':'#10b981';
+      out += '<circle cx="'+x+'" cy="'+y+'" r="3.5" fill="'+col+'" stroke="white" stroke-width="1.5"/>';
+      if(idx===0||idx===pts.length-1){
+        out += '<text x="'+x+'" y="'+(y-9)+'" text-anchor="middle" font-size="9" fill="'+col+'" font-weight="700">'+v+'%</text>';
+      }
+    });
+    return out;
   }
 
-  // X-axis labels
-  var xLabels = log.map(function(e, i){
-    var d = new Date(e.date+'T12:00:00');
-    var lbl = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    var show = N <= 10 || i === 0 || i === N-1 || i % Math.ceil(N/8) === 0;
+  // Grid
+  var grid = '';
+  for(var s=0;s<=4;s++){
+    var gv = Math.round(maxI*s/4), gy = sy(gv,maxI);
+    grid += '<line x1="'+PAD.l+'" y1="'+gy+'" x2="'+(PAD.l+CW)+'" y2="'+gy+'" stroke="#f3f4f6" stroke-width="1"/>';
+    grid += '<text x="'+(PAD.l-8)+'" y="'+(gy+4)+'" text-anchor="end" font-size="9" fill="#d1d5db">'+gv+'</text>';
+  }
+
+  // X labels
+  var xLbls = log.map(function(e,i){
+    var show = N<=7 || i===0 || i===N-1 || i%Math.ceil(N/7)===0;
     if(!show) return '';
-    return '<text x="'+scaleX(i)+'" y="'+(PAD.t+CH+18)+'" text-anchor="middle" font-size="10" fill="#9ca3af">'+lbl+'</text>';
+    var d2 = new Date(e.date+'T12:00:00');
+    var lbl = d2.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return '<text x="'+sx(i)+'" y="'+(PAD.t+CH+20)+'" text-anchor="middle" font-size="10" fill="#9ca3af">'+lbl+'</text>';
   }).join('');
 
-  // Y-axis (impressions, left)
-  var ySteps = 4;
-  var yLabels = '';
-  for(var s=0; s<=ySteps; s++){
-    var yv = Math.round(maxImpr * s / ySteps);
-    var yy = scaleY(yv, 0, maxImpr);
-    yLabels += '<text x="'+(PAD.l-6)+'" y="'+(yy+4)+'" text-anchor="end" font-size="10" fill="#9ca3af">'+yv+'</text>';
-    yLabels += '<line x1="'+PAD.l+'" y1="'+yy+'" x2="'+(PAD.l+CW)+'" y2="'+yy+'" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3,3"/>';
-  }
+  var cI = lineColor(tI, false);
+  var cS = lineColor(tS, true);
 
   var svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">'
-    + yLabels + xLabels
-    // Areas
-    + makeArea(imprs,  0, maxImpr,  '#6366f1')
-    + makeArea(spends, 0, maxSpend, '#f59e0b')
-    // Lines
-    + makeLine(imprs,  0, maxImpr,  '#6366f1')
-    + makeLine(spends, 0, maxSpend, '#f59e0b', '6,3')
-    // IS% line (dashed, scaled to 0-100)
-    + (nice(isList).length >= 2 ? makeLine(isList.map(function(v){return v===null?0:v;}), 0, maxIS, '#10b981', '4,4') : '')
-    // Dots
-    + makeDots(imprs,  0, maxImpr,  '#6366f1')
-    + makeDots(spends, 0, maxSpend, '#f59e0b')
-    // Lead diamonds on top
-    + makeLeadMarkers(leads, 0, maxLeads)
-    + (nice(isList).length >= 2 ? makeISDots() : '')
-    // Axes
-    + '<line x1="'+PAD.l+'" y1="'+PAD.t+'" x2="'+PAD.l+'" y2="'+(PAD.t+CH)+'" stroke="#d1d5db" stroke-width="1"/>'
-    + '<line x1="'+PAD.l+'" y1="'+(PAD.t+CH)+'" x2="'+(PAD.l+CW)+'" y2="'+(PAD.t+CH)+'" stroke="#d1d5db" stroke-width="1"/>'
+    + grid + xLbls
+    + makeArea(imprs,  maxI, 'rgba(99,102,241,0.07)')
+    + makeArea(spends, maxS, fillColor(tS, true))
+    + makeLine(imprs,  maxI, '#6366f1', '', 2.5)
+    + makeLine(spends, maxS, cS, '7,4', 2)
+    + (nice(isList).length>=2 ? makeISDots() : '')
+    + makeLeadMarkers()
+    + makeDots(imprs,  maxI, '#6366f1', true)
+    + makeDots(spends, maxS, cS, false)
+    + '<line x1="'+PAD.l+'" y1="'+PAD.t+'" x2="'+PAD.l+'" y2="'+(PAD.t+CH)+'" stroke="#e5e7eb" stroke-width="1"/>'
+    + '<line x1="'+PAD.l+'" y1="'+(PAD.t+CH)+'" x2="'+(PAD.l+CW)+'" y2="'+(PAD.t+CH)+'" stroke="#e5e7eb" stroke-width="1"/>'
     + '</svg>';
 
-  // Trend markers below chart
+  // Summary tiles
   var lastImpr  = imprs[N-1];
   var lastSpend = spends[N-1];
-  var lastLeads = leads[N-1];
-  var avgCPL    = (function(){ var ts=0,tl=0; log.forEach(function(e){ts+=e.spend;tl+=e.leads;}); return tl>0?Math.round(ts/tl):null; })();
-  var totalLeads= leads.reduce(function(a,b){return a+b;},0);
+  var totalLeads = leads.reduce(function(a,b){return a+b;},0);
+  var avgCPL = (function(){ var ts=0,tl=0; log.forEach(function(e){ts+=e.spend;tl+=e.leads;}); return tl>0?Math.round(ts/tl):null; })();
+  var tSFull = trend(spends);
+  var tCPL   = trend(log.map(function(e){ return e.leads>0?Math.round(e.spend/e.leads):null; }));
 
-  var lastSpend  = log[N-1].spend || 0;
-  var tSpend     = trend(log.map(function(e){ return e.spend||0; }));
   var markers = [
-    { lbl:'Impressions', val: lastImpr,                        sub: 'Yesterday', trend: tImpr,  invert: false },
-    { lbl:'Spend',       val: '$'+lastSpend.toFixed(0),        sub: 'Yesterday', trend: tSpend, invert: true },
-    { lbl:'Avg CPL',     val: avgCPL ? '$'+avgCPL : '—',  sub: 'All time',  trend: trend(log.map(function(e){ return e.leads>0?Math.round(e.spend/e.leads):null; })), invert: true },
-    { lbl:'Total Leads', val: totalLeads,                      sub: 'Since reset', trend: tLeads, invert: false },
+    { lbl:'Impressions', val: String(lastImpr),              sub: 'Yesterday', t: tI,     inv: false },
+    { lbl:'Spend',       val: '$'+lastSpend.toFixed(0),      sub: 'Yesterday', t: tSFull, inv: true  },
+    { lbl:'Avg CPL',     val: avgCPL ? '$'+avgCPL : '—', sub: 'All time', t: tCPL,   inv: true  },
+    { lbl:'Total Leads', val: String(totalLeads),            sub: 'Since reset', t: tL,   inv: false },
   ];
 
-  var markerHtml = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;">';
+  var tiles = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">';
   markers.forEach(function(m){
-    var col = tColor(m.trend, m.invert);
-    markerHtml += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
+    var tc = tileColor(m.t, m.inv);
+    var bg = m.t==='flat'?'var(--surface)': (m.t==='up'?(!m.inv?'#f0fdf4':'#fef2f2'): (!m.inv?'#fef2f2':'#f0fdf4'));
+    tiles += '<div style="background:'+bg+';border:1px solid var(--border);border-radius:10px;padding:12px 14px;">'
       + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">'+m.lbl+'</div>'
-      + '<div style="font-size:20px;font-weight:800;color:var(--stone);font-family:monospace;">'+m.val+'</div>'
-      + '<div style="font-size:11px;margin-top:3px;color:'+col+';font-weight:700;">'+arrow(m.trend)+' '+m.sub+'</div>'
+      + '<div style="font-size:22px;font-weight:800;color:var(--stone);font-family:monospace;letter-spacing:-1px;">'+m.val+'</div>'
+      + '<div style="font-size:11px;margin-top:4px;color:'+tc+';font-weight:700;">'+arrow(m.t)+' '+m.sub+'</div>'
       + '</div>';
   });
-  markerHtml += '</div>';
+  tiles += '</div>';
 
-  // Legend
-  var legend = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted);">'
-    + '<span><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#6366f1" stroke-width="2.5"/></svg> Impressions</span>'
-    + '<span><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="6,3"/></svg> Spend ($)</span>'
-    + (nice(isList).length >= 2 ? '<span><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#10b981" stroke-width="2" stroke-dasharray="4,4"/></svg> Imp. Share %</span>' : '')
-    + '<span><svg width="12" height="12"><polygon points="6,0 12,6 6,12 0,6" fill="#f59e0b"/></svg> Lead logged</span>'
+  var isHas = nice(isList).length>=2;
+  var legend = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;margin-bottom:4px;font-size:11px;color:var(--muted);align-items:center;">'
+    + '<span style="display:flex;align-items:center;gap:5px;"><svg width="20" height="4" style="overflow:visible"><line x1="0" y1="2" x2="20" y2="2" stroke="#6366f1" stroke-width="2.5"/></svg>Impressions</span>'
+    + '<span style="display:flex;align-items:center;gap:5px;"><svg width="20" height="4" style="overflow:visible"><line x1="0" y1="2" x2="20" y2="2" stroke="'+cS+'" stroke-width="2" stroke-dasharray="6,4"/></svg>Spend</span>'
+    + (isHas?'<span style="display:flex;align-items:center;gap:5px;"><svg width="20" height="4" style="overflow:visible"><line x1="0" y1="2" x2="20" y2="2" stroke="#10b981" stroke-width="1.5" stroke-dasharray="4,3"/></svg>Imp. Share</span>':'')
+    + '<span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#f59e0b"/></svg>Lead</span>'
+    + '<span style="font-size:10px;">&#9632; <span style="color:#22c55e;font-weight:700;">Green</span> = trending well &nbsp; <span style="color:#ef4444;font-weight:700;">Red</span> = needs attention</span>'
     + '</div>';
 
   el.innerHTML = '<div class="card" style="margin-bottom:14px;">'
-    + '<div class="card-head"><h3>Performance Trends</h3><p>Daily actuals from your logged entries.</p></div>'
-    + '<div style="padding:16px 20px 0;">' + svg + legend + '</div>'
-    + '<div style="padding:12px 20px 16px;">' + markerHtml + '</div>'
+    + '<div class="card-head"><h3>Performance Trends</h3><p>Line color shows trend direction — green is improving, red needs attention.</p></div>'
+    + '<div style="padding:16px 20px 4px;">' + svg + legend + '</div>'
+    + '<div style="padding:4px 20px 16px;">' + tiles + '</div>'
     + '</div>';
 }
 
@@ -1936,15 +1981,23 @@ async function getPerfAI(){
   camp.perfLog.forEach(function(e){ totalSpend+=e.spend; totalLeads+=e.leads; });
   var avgCPL = totalLeads>0 ? Math.round(totalSpend/totalLeads) : null;
 
-  var prompt = 'You are a Google Ads analyst advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. Daily budget: $'+camp.budget+'. Campaign reset '+camp.resetDate+'. Currently Day '+days+' of learning phase recovery.\n\n'
+  var kchCtx = 'CRITICAL BUSINESS CONTEXT — apply this before any analysis:\n'
+    + '- KCH sells premium hardscape (patios, retaining walls, outdoor kitchens) averaging $15,000-$50,000+ per project\n'
+    + '- This is a CONSIDERED PURCHASE. Customers research for days or weeks before booking a consultation.\n'
+    + '- Realistic Calendly bookings: 1-3 per WEEK is excellent. 1-2 per week is healthy. Zero bookings in a day or even a week is completely normal — NOT a failure.\n'
+    + '- NEVER flag zero daily leads as a problem. Lead volume is a weekly and monthly metric, not daily.\n'
+    + '- G.Conv is a GA4 micro-conversion (3 page views on site) — a soft algorithm-training signal, not a booking.\n'
+    + '- Daily signals that actually matter: CTR (5%+ is strong for hardscape), IS% (want it trending up), CPC (under $25 is healthy), spend vs budget ratio.\n';
+  var prompt = 'You are a Google Ads analyst advising Kansas City Hardscapes (KCH), a premium hardscape contractor in KC metro. Daily budget: $'+camp.budget+'. Campaign reset '+camp.resetDate+'. Currently Day '+days+' of learning phase recovery.\n\n'
+    + kchCtx + '\n'
     + 'DAILY PERFORMANCE LOG:\n'+logSummary+'\n\n'
     + 'TOTALS: $'+totalSpend.toFixed(0)+' spend, '+totalLeads+' leads, avg CPL '+(avgCPL?'$'+avgCPL:'N/A')+'\n\n'
     + 'Write a plain-English performance summary covering:\n'
-    + '1. TREND — Is performance improving, declining, or flat?\n'
-    + '2. RECOVERY PROGRESS — Is this consistent with normal recovery or are there warning signs?\n'
-    + '3. WHAT STANDS OUT — One or two specific data points worth attention.\n'
-    + '4. NEXT WEEK — One concrete action based on the data.\n\n'
-    + 'Write directly to the business owner. Honest and specific. Under 300 words.'
+    + '1. TREND — Is CTR, IS%, and spend efficiency improving, declining, or flat?\n'
+    + '2. RECOVERY PROGRESS — Is the algorithm behaving as expected for Day '+days+'?\n'
+    + '3. WHAT STANDS OUT — One or two specific data points worth attention. Do not flag zero daily leads.\n'
+    + '4. THIS WEEK — One concrete, specific action based on the actual numbers.\n\n'
+    + 'Write directly to the business owner. Be encouraging where the data supports it. Honest and specific. Under 300 words.'
     + buildHistoryContext(camp.id, 'perf', 'performance trend analyses');
 
   // Timeout safety — never spin forever
@@ -2565,13 +2618,20 @@ async function generateTodos(){
   var pendingNegs = (camp.negatives||[]).filter(function(n){ return !n.added; }).map(function(n){ return n.text; }).join(', ') || 'None';
   var histCtx = buildHistoryContext(camp.id, 'todos', 'weekly to-do analyses');
 
-  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
+  var kchCtxTodo = 'CRITICAL BUSINESS CONTEXT:\n'
+    + '- KCH sells premium hardscape averaging $15,000-$50,000+ per project\n'
+    + '- Considered purchase — customers research for days/weeks before booking\n'
+    + '- Target: 1-3 Calendly bookings per week is excellent. Zero in a week is normal.\n'
+    + '- Daily leading indicators: CTR (5%+), IS% (trending up), CPC (under $25), G.Conv (soft signal only)\n'
+    + '- Never generate tasks based on lack of daily leads — that is expected and normal for this business\n';
+  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes (KCH), a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
+    + kchCtxTodo + '\n'
     + 'RECENT PERFORMANCE: '+perfSummary+'\n'
     + 'RECENT CHANGES:\n'+recentChanges+'\n'
     + 'PENDING NEGATIVES: '+pendingNegs+'\n\n'
-    + 'Generate a focused to-do list for this week. Return ONLY valid JSON array, no markdown, no explanation:\n'
+    + 'Generate a focused, realistic to-do list for this week. Return ONLY valid JSON array, no markdown, no explanation:\n'
     + '[{"tag":"Priority","title":"...","desc":"...","note":"..."},...]\n\n'
-    + 'Rules: 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Each must be specific to KCH right now.'
+    + 'Rules: 2-3 Priority tasks, 2 Strategic tasks, 1-2 Growth tasks. Each must be specific and actionable for KCH right now. No generic advice.'
     + histCtx;
 
   // Timeout safety
