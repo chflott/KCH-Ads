@@ -3090,7 +3090,7 @@ function wireAllAI(camp){
 // ── CHECKLIST ────────────────────────────
 function initChecklist(camp){
   var banner = document.getElementById('done-banner');
-  var list   = document.getElementById('todo-list');
+  var list   = document.getElementById('ai-todo-list');
   var aiBtn  = document.getElementById('todo-ai-btn');
   var errEl  = document.getElementById('todo-ai-error');
   if(errEl) errEl.style.display = 'none';
@@ -3103,7 +3103,12 @@ function initChecklist(camp){
 }
 
 function renderTodos(camp){
-  var list  = document.getElementById('todo-list');
+  var list  = document.getElementById('ai-todo-list');
+  // If todo-list not in DOM, re-init the checklist screen
+  if(!list){
+    initChecklist(camp);
+    list = document.getElementById('ai-todo-list');
+  }
   var banner= document.getElementById('done-banner');
   var aiBtn = document.getElementById('todo-ai-btn');
   var load  = document.getElementById('todo-ai-loading');
