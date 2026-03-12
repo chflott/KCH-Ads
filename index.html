@@ -2649,20 +2649,26 @@ async function generateTodos(){
   }, 45000);
 
   try {
+    console.log('TODO: calling AI...');
     var text = await callAI(prompt, 1500);
     clearTimeout(timer);
     if(timedOut) return;
+    console.log('TODO: AI returned, length='+text.length);
     // Strip markdown fences and find JSON array
     var clean = text.replace(/```json|```/g,'').trim();
     var arrStart = clean.indexOf('[');
     var arrEnd   = clean.lastIndexOf(']');
+    console.log('TODO: arrStart='+arrStart+' arrEnd='+arrEnd);
     if(arrStart === -1 || arrEnd === -1) throw new Error('No JSON array in response');
     clean = clean.slice(arrStart, arrEnd+1);
+    console.log('TODO: clean JSON='+clean.slice(0,100));
     var todos = JSON.parse(clean);
+    console.log('TODO: parsed '+todos.length+' items');
     if(!Array.isArray(todos) || todos.length === 0) throw new Error('Empty todo list');
     await saveAnalysis(camp.id, 'todos', 'Week of '+getChicagoWeekKey()+': '+todos.map(function(t){ return '['+t.tag+'] '+t.title; }).join('; '));
     // Update the live campaigns array entry directly
     var liveCamp = getCamp(camp.id);
+    console.log('TODO: liveCamp='+JSON.stringify(liveCamp ? liveCamp.id : null));
     if(liveCamp){
       liveCamp.aiTodos      = todos;
       liveCamp.aiTodosWeek  = getChicagoWeekKey();
@@ -2670,7 +2676,9 @@ async function generateTodos(){
     }
     save('campaigns', campaigns);
     if(loading) loading.style.display = 'none';
+    console.log('TODO: calling renderTodos');
     renderTodos(liveCamp || camp);
+    console.log('TODO: done');
   } catch(e) {
     clearTimeout(timer);
     if(timedOut) return;
