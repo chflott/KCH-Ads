@@ -374,9 +374,7 @@ html,body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:va
 .mo-cold{background:var(--surface);color:#94a3b8;}
 
 /* ── KEYWORDS ── */
-.kw-filter-btn{padding:6px 14px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--white);color:var(--muted);cursor:pointer;transition:all .12s;}
-.kw-filter-btn:hover{background:var(--surface);color:var(--stone);}
-.kw-filter-btn.kw-f-active{background:var(--stone);color:#fff;border-color:var(--stone);}
+
 
 /* ── WARN BADGE ── */
 .warn-badge,.tab-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;margin-left:5px;vertical-align:middle;flex-shrink:0;}
@@ -857,7 +855,7 @@ function renderCampaign(camp) {
 
   var tabNames = {
     input: 'Daily Input', performance: 'Performance', recovery: 'Recovery', checklist: 'Weekly To-Do',
-    keywords: 'Keywords', changes: 'Change Log',
+    keywords: 'Negative Keywords', changes: 'Change Log',
     season: 'Seasonality'
   };
 
@@ -891,7 +889,7 @@ function renderCampaign(camp) {
           });
         }
         if(tabId === 'checklist')  { initChecklist(c); setTimeout(function(){ wireAllAI(c); }, 50); }
-        if(tabId === 'keywords')   { renderKW(c); wireKWButtons(c); }
+        if(tabId === 'keywords')   { renderNG(c); wireNegButtons(c); }
         if(tabId === 'changes')    { renderCL(c); wireCLButtons(c); }
       });
       tabBar.appendChild(btn);
@@ -906,10 +904,8 @@ function renderCampaign(camp) {
   }
 
   // Init dynamic content
-  renderKW(camp);
   renderCL(camp);
   renderNG(camp);
-  wireKWButtons(camp);
   wireCLButtons(camp);
   initRecovery(camp);
   setTimeout(function(){ checkWarnings(camp); }, 100);
@@ -2230,79 +2226,25 @@ function buildChecklist(camp){
 
 // ── KEYWORDS ──────────────────────────────
 function buildKeywords(camp){
-  // Sub-tab shell — Keywords and Negatives live inside here
-  var el = document.createElement('div');
-
-  // Sub-tab bar
-  var subBar = document.createElement('div');
-  subBar.style.cssText = 'display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;';
-
-  var kwBtn  = document.createElement('button');
-  var negBtn = document.createElement('button');
-  var baseStyle = 'padding:10px 20px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;color:var(--muted);';
-  var activeStyle = 'color:var(--stone);border-bottom-color:var(--gold);';
-  kwBtn.style.cssText  = baseStyle + activeStyle;
-  negBtn.style.cssText = baseStyle;
-  kwBtn.textContent  = 'Keywords';
-  negBtn.textContent = 'Negative Keywords';
-
-  var kwPane  = document.createElement('div');
-  var negPane = document.createElement('div');
-  negPane.style.display = 'none';
-
-  // Sub-tab switching wired in wireKWButtons after DOM renders
-  kwBtn.id  = 'kw-subtab-btn';
-  negBtn.id = 'neg-subtab-btn';
-
-  subBar.appendChild(kwBtn);
-  subBar.appendChild(negBtn);
-  el.appendChild(subBar);
-
-  // ── Keywords pane ──
-  kwPane.innerHTML = '<div class="alert alert-gold"><strong>Track every keyword across its full lifecycle.</strong> From testing to active to paused or removed.</div>'
-    + '<div class="card"><div class="card-head"><h3>Add Keyword</h3><p>Track a keyword, its match type, and notes as you learn what works.</p></div><div class="card-body">'
-    + '<div class="input-grid" style="margin-bottom:10px;">'
-    + '<div class="mf" style="grid-column:span 2;"><label>Keyword</label><input type="text" id="kw-text" placeholder="e.g. hardscape contractor Kansas City" style="font-size:13px;font-family:inherit;"></div>'
-    + '<div class="mf"><label>Match Type</label><select id="kw-match" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option>Exact</option><option>Phrase</option><option>Broad</option></select></div>'
-    + '<div class="mf"><label>Status</label><select id="kw-status" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option>Active</option><option>Testing</option><option>Paused</option><option>Removed</option></select></div>'
-    + '</div>'
-    + '<div class="mf" style="margin-bottom:10px;"><label>Notes</label><input type="text" id="kw-notes" placeholder="e.g. Strong performer, $14 CPC, mostly Johnson County clicks" style="font-size:13px;font-family:inherit;"></div>'
-    + '<button class="btn btn-gold" id="kw-add-btn">Add Keyword</button><span class="saved" id="kw-saved">Saved</span>'
+  // Negatives only — keyword tracking removed as redundant with Google Ads
+  return '<div class="alert alert-neutral"><strong>Your negative keyword list is your most important budget protection tool.</strong> Every irrelevant click wastes budget and corrupts algorithm learning. Add new negatives weekly from your Search Terms Report.</div>'
+    + '<div class="card"><div class="card-head"><h3>Add Negative Keyword</h3><p>Log a negative keyword and check it off after adding it in Google Ads.</p></div>'
+    + '<div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">'
+    + '<div class="mf" style="flex:1;min-width:200px;margin-bottom:0;"><label>Keyword</label><input type="text" id="neg-input" placeholder="e.g. cheap patio ideas, DIY patio, free estimate" style="font-size:13px;font-family:inherit;" onkeydown="if(event.key===\'Enter\')addNeg()"></div>'
+    + '<div class="mf" style="min-width:120px;margin-bottom:0;"><label>Match Type</label><select id="neg-match" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option value="Broad">Broad</option><option value="Phrase">Phrase</option><option value="Exact">Exact</option></select></div>'
+    + '<button class="btn btn-gold" id="neg-add-btn" onclick="addNeg()">Add</button><span class="saved" id="neg-saved">Added</span>'
     + '</div></div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="kw-filters">'
-    + '<button class="kw-filter-btn kw-f-active" data-filter="all">All</button>'
-    + '<button class="kw-filter-btn" data-filter="Active">Active</button>'
-    + '<button class="kw-filter-btn" data-filter="Testing">Testing</button>'
-    + '<button class="kw-filter-btn" data-filter="Paused">Paused</button>'
-    + '<button class="kw-filter-btn" data-filter="Removed">Removed</button>'
-    + '</div>'
-    + '<div id="kw-list"></div>'
-    + '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>AI Keyword Strategy</h3><p>Analyzes your full keyword inventory and recommends what to add, cut, and test.</p></div>'
-    + '<div class="card-body"><button class="btn btn-gold" id="kw-ai-btn" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Analyze My Keyword Strategy</button>'
-    + '<div id="kw-ai-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Analyzing your keyword strategy...</div>'
-    + '<div id="kw-ai-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'
-    + '</div></div>';
-
-  // ── Negatives pane ──
-  negPane.innerHTML = '<div class="alert alert-neutral"><strong>Your negative keyword list is your most important budget protection tool.</strong> Check off each one as you add it to Google Ads.</div>'
-    + '<div class="card"><div class="card-head"><h3>Add Negative Keyword</h3></div><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">'
-    + '<div class="mf" style="flex:1;min-width:200px;margin-bottom:0;"><label>Keyword</label><input type="text" id="neg-input" placeholder="e.g. cheap patio ideas" style="font-size:13px;font-family:inherit;"></div>'
-    + '<button class="btn btn-gold" id="neg-add-btn">Add</button><span class="saved" id="neg-saved">Added</span>'
-    + '</div></div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">'
-    + '<div style="font-size:11px;color:var(--muted);">Check off each keyword after adding it in Google Ads. <span id="neg-count" style="font-weight:700;color:var(--stone);"></span></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;flex-wrap:wrap;gap:8px;">'
+    + '<div style="font-size:11px;color:var(--muted);">Check the box after you\'ve added each one in Google Ads. <span id="neg-count" style="font-weight:700;color:var(--stone);"></span></div>'
     + '<button class="btn btn-ghost" id="neg-copy-btn" style="font-size:11px;">Copy All to Clipboard</button>'
     + '</div>'
     + '<div id="neg-list"></div>'
-    + '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>AI Negative Keyword Recommendations</h3><p>Surfaces wasteful search terms you may be missing based on your active keywords and KCH context.</p></div>'
-    + '<div class="card-body"><button class="btn btn-gold" id="neg-ai-btn" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Find Missing Negative Keywords</button>'
+    + '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>AI Negative Keyword Recommendations</h3>'
+    + '<p>Reviews your current negative list and KCH campaign context to surface wasteful search terms you may be missing.</p></div>'
+    + '<div class="card-body"><button class="btn btn-gold" id="neg-ai-btn" onclick="getNegRec()" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Find Missing Negative Keywords</button>'
     + '<div id="neg-ai-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Reviewing your negative keyword coverage...</div>'
     + '<div id="neg-ai-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'
     + '</div></div>';
-
-  el.appendChild(kwPane);
-  el.appendChild(negPane);
-  return el.innerHTML;
 }
 
 
@@ -2798,40 +2740,6 @@ async function getChangeAI(){
 }
 
 
-async function getKWRec(){
-  var camp = getCamp(activeCampId);
-  if(!camp){ return; }
-  var btn     = document.getElementById('kw-ai-btn');
-  var loading = document.getElementById('kw-ai-loading');
-  var output  = document.getElementById('kw-ai-output');
-  aiStart(btn, loading, output);
-
-  var kwList = (camp.keywords||[]).map(function(k){
-    return '['+k.match+'] '+k.text+' ('+k.status+')';
-  }).join('\n') || 'No keywords logged yet.';
-
-  var prompt = 'You are a Google Ads keyword strategist advising Kansas City Hardscapes — a premium hardscape contractor in KC metro. Buyers are high-income homeowners in Johnson County. Conversions come through a Calendly booking page.\n\n'
-    + 'CURRENT KEYWORD LIST:\n'+kwList+'\n\n'
-    + 'Daily budget: $'+camp.budget+'. Day '+getDaysFor(camp.resetDate)+' of recovery.\n\n'
-    + 'Provide keyword strategy covering:\n'
-    + '1. CUT — which keywords (if any) should be paused or removed and why\n'
-    + '2. ADD — 3-5 specific new keywords worth testing with match type recommendation\n'
-    + '3. MATCH TYPE STRATEGY — should KCH be running more Exact or Phrase match right now and why\n'
-    + '4. QUICK WIN — one change to make this week\n\n'
-    + 'Be specific to Kansas City hardscape. Suggest real keyword phrases a homeowner in Leawood or Overland Park would type.'
-    + buildHistoryContext(camp.id, 'kw', 'keyword strategy analyses');
-
-  try {
-    var text = await callAI(prompt, 800);
-    aiDone(loading);
-    aiShowResult(output, btn, text, camp.id, 'kw');
-  } catch(e) {
-    aiDone(loading);
-    aiError(output, btn);
-  }
-}
-
-
 async function getNegRec(){
   var camp = getCamp(activeCampId);
   if(!camp){ return; }
@@ -2876,75 +2784,6 @@ function getChicagoWeekKey(){
 }
 
 
-// ── KEYWORD FUNCTIONS ────────────────────
-var kwStatusColors = {
-  'Active':  {bg:'#f0faf5',border:'#6ee7b7',text:'#155e3e'},
-  'Testing': {bg:'#eff4ff',border:'#a5b4fc',text:'#1e3a8a'},
-  'Paused':  {bg:'#fffbeb',border:'#fcd34d',text:'#78350f'},
-  'Removed': {bg:'#fef2f2',border:'#fca5a5',text:'#991b1b'}
-};
-
-function renderKW(camp){
-  var el = document.getElementById('kw-list');
-  if(!el) return;
-  var kws = camp.keywords || [];
-  var filter = camp.kwFilter || 'all';
-  var filtered = filter === 'all' ? kws : kws.filter(function(k){ return k.status === filter; });
-  if(!filtered.length){
-    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">'+(kws.length?'No keywords match this filter.':'No keywords added yet.')+'</div>';
-    return;
-  }
-  el.innerHTML = filtered.map(function(k){
-    var sc = kwStatusColors[k.status] || {bg:'#f5f3ef',border:'#d1d5db',text:'var(--muted)'};
-    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--border-lt);">'
-      + '<div style="flex:1;cursor:pointer;" onclick="toggleTodo('+i+')">'
-      + '<div style="font-size:13px;font-weight:600;color:var(--stone);">'+k.text+'</div>'
-      + '<div style="display:flex;gap:8px;margin-top:5px;flex-wrap:wrap;align-items:center;">'
-      + '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:'+sc.bg+';color:'+sc.text+';border:1px solid '+sc.border+';">'+k.match+'</span>'
-      + '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:'+sc.bg+';color:'+sc.text+';border:1px solid '+sc.border+';">'+k.status+'</span>'
-      + (k.notes ? '<span style="font-size:11px;color:var(--muted);">'+k.notes+'</span>' : '')
-      + '</div></div>'
-      + '<button onclick="removeKW('+k.id+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;" title="Remove">×</button>'
-      + '</div>';
-  }).join('');
-}
-
-function addKW(){
-  var camp = getCamp(activeCampId); if(!camp) return;
-  var text = document.getElementById('kw-text').value.trim();
-  if(!text){ alert('Please enter a keyword.'); return; }
-  if(!camp.keywords) camp.keywords = [];
-  camp.keywords.push({
-    id: Date.now(),
-    text: text,
-    match: document.getElementById('kw-match').value,
-    status: document.getElementById('kw-status').value,
-    notes: document.getElementById('kw-notes').value.trim(),
-    added: new Date().toISOString().split('T')[0]
-  });
-  save('campaigns', campaigns);
-  document.getElementById('kw-text').value = '';
-  document.getElementById('kw-notes').value = '';
-  var m = document.getElementById('kw-saved');
-  if(m){ m.style.display='inline'; setTimeout(function(){ m.style.display='none'; }, 2000); }
-  renderKW(camp);
-}
-
-function removeKW(id){
-  var camp = getCamp(activeCampId); if(!camp) return;
-  camp.keywords = (camp.keywords||[]).filter(function(k){ return k.id !== id; });
-  save('campaigns', campaigns);
-  renderKW(camp);
-}
-
-function filterKW(filter, btn){
-  var camp = getCamp(activeCampId); if(!camp) return;
-  camp.kwFilter = filter;
-  document.querySelectorAll('.kw-filter-btn').forEach(function(b){ b.classList.remove('kw-f-active'); });
-  if(btn) btn.classList.add('kw-f-active');
-  renderKW(camp);
-}
-
 // ── NEGATIVE KEYWORD FUNCTIONS ───────────
 function renderNG(camp){
   var el = document.getElementById('neg-list');
@@ -2957,10 +2796,18 @@ function renderNG(camp){
     el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">No negative keywords yet.</div>';
     return;
   }
+  var matchColors = {
+    'Broad':  {bg:'#fef9c3',color:'#78350f'},
+    'Phrase': {bg:'#eff4ff',color:'#1e3a8a'},
+    'Exact':  {bg:'#f0faf5',color:'#155e3e'}
+  };
   el.innerHTML = negs.map(function(n, i){
+    var mc = matchColors[n.match] || matchColors['Broad'];
+    var badge = '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:'+mc.bg+';color:'+mc.color+';white-space:nowrap;">'+(n.match||'Broad')+'</span>';
     return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-lt);">'
       + '<input type="checkbox"'+(n.added?' checked':'')+' onchange="toggleNeg(getCamp(activeCampId),'+i+',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--gold);">'
       + '<span style="flex:1;font-size:13px;color:'+(n.added?'var(--muted)':'var(--stone)')+';font-family:monospace;'+(n.added?'text-decoration:line-through;':'')+'">'+n.text+'</span>'
+      + badge
       + '<button onclick="removeNeg('+i+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;">×</button>'
       + '</div>';
   }).join('');
@@ -2968,11 +2815,12 @@ function renderNG(camp){
 
 function addNeg(){
   var camp = getCamp(activeCampId); if(!camp) return;
-  var inp = document.getElementById('neg-input');
-  var text = inp ? inp.value.trim() : '';
+  var inp   = document.getElementById('neg-input');
+  var match = document.getElementById('neg-match');
+  var text  = inp ? inp.value.trim() : '';
   if(!text) return;
   if(!camp.negatives) camp.negatives = [];
-  camp.negatives.push({text: text, added: false});
+  camp.negatives.push({text: text, match: match ? match.value : 'Broad', added: false});
   save('campaigns', campaigns);
   if(inp) inp.value = '';
   var m = document.getElementById('neg-saved');
@@ -2996,7 +2844,12 @@ function toggleNeg(camp, idx, checked){
 
 function copyNegs(){
   var camp = getCamp(activeCampId); if(!camp) return;
-  var text = (camp.negatives||[]).map(function(n){ return n.text; }).join('\n');
+  var text = (camp.negatives||[]).map(function(n){
+    var m = n.match || 'Broad';
+    if(m === 'Phrase') return '"' + n.text + '"';
+    if(m === 'Exact')  return '[' + n.text + ']';
+    return n.text; // Broad — no brackets
+  }).join('\n');
   navigator.clipboard.writeText(text).then(function(){
     var btn = document.getElementById('neg-copy-btn');
     if(btn){ var orig=btn.textContent; btn.textContent='Copied!'; setTimeout(function(){ btn.textContent=orig; }, 2000); }
@@ -3080,37 +2933,7 @@ function removeCL(idx){
 }
 
 // ── WIRE KW BUTTONS ──────────────────────
-function wireKWButtons(camp){
-  var kwSubBtn  = document.getElementById('kw-subtab-btn');
-  var negSubBtn = document.getElementById('neg-subtab-btn');
-  if(kwSubBtn && negSubBtn){
-    var subBar = kwSubBtn.parentElement;
-    var panes  = [];
-    var sib = subBar.nextElementSibling;
-    while(sib){ panes.push(sib); sib = sib.nextElementSibling; }
-    var kwP  = panes[0];
-    var negP = panes[1];
-    var baseStyle   = 'padding:10px 20px;font-size:12px;font-weight:700;border:none;cursor:pointer;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;color:var(--muted);';
-    var activeStyle = 'color:var(--stone);border-bottom-color:var(--gold);';
-    if(kwP && negP){
-      kwSubBtn.addEventListener('click', function(){
-        kwP.style.display  = 'block'; negP.style.display = 'none';
-        kwSubBtn.style.cssText  = baseStyle + activeStyle;
-        negSubBtn.style.cssText = baseStyle;
-      });
-      negSubBtn.addEventListener('click', function(){
-        kwP.style.display  = 'none'; negP.style.display = 'block';
-        negSubBtn.style.cssText = baseStyle + activeStyle;
-        kwSubBtn.style.cssText  = baseStyle;
-      });
-    }
-  }
-  var addBtn = document.getElementById('kw-add-btn');
-  if(addBtn) addBtn.addEventListener('click', addKW);
-  var filters = document.querySelectorAll('#kw-filters .kw-filter-btn');
-  filters.forEach(function(btn){
-    btn.addEventListener('click', function(){ filterKW(btn.getAttribute('data-filter'), btn); });
-  });
+function wireNegButtons(camp){
   var negAdd  = document.getElementById('neg-add-btn');
   var negCopy = document.getElementById('neg-copy-btn');
   var negIn   = document.getElementById('neg-input');
@@ -3145,7 +2968,6 @@ function wireAllAI(camp){
   });
   rewire('todo-ai-btn',  generateTodos);
   rewire('cl-ai-btn',    getChangeAI);
-  rewire('kw-ai-btn',    getKWRec);
   rewire('neg-ai-btn',   getNegRec);
   rewire('ai-rec-btn',   getAIRec);
 }
