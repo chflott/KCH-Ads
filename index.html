@@ -2206,6 +2206,7 @@ function buildChecklist(camp){
     + '<option value="Result">Result</option>'
     + '<option value="Change">Change</option>'
     + '</select>'
+    + '<input type="date" id="log-entry-date" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;color:var(--stone);">'
     + '<textarea id="log-entry-text" placeholder="e.g. Search terms report: top spend term is patio contractor KC — premium intent. Found patio ideas burning $40 with zero conversions — adding as negative." style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--stone);resize:vertical;min-height:60px;font-family:inherit;line-height:1.5;"></textarea>'
     + '<button id="log-entry-save" class="btn btn-gold" style="white-space:nowrap;padding:8px 14px;font-size:12px;">Add Entry</button>'
     + '</div>'
@@ -2986,19 +2987,28 @@ function toggleChangeFields(){
   fields.style.display = typeEl.value === 'Change' ? 'flex' : 'none';
 }
 
+function setLogDateDefault(){
+  var el = document.getElementById('log-entry-date');
+  if(!el) return;
+  var today = new Date().toISOString().slice(0,10);
+  el.value = today;
+}
+
 function wireCampaignLog(camp){
+  setLogDateDefault();
   var saveBtn = document.getElementById('log-entry-save');
   if(!saveBtn || saveBtn._logWired) return;
   saveBtn._logWired = true;
   saveBtn.addEventListener('click', function(){
     var typeEl    = document.getElementById('log-entry-type');
     var textEl    = document.getElementById('log-entry-text');
+    var dateEl    = document.getElementById('log-entry-date');
     var text = textEl ? textEl.value.trim() : '';
     if(!text) return;
     var type = typeEl ? typeEl.value : 'Finding';
-    var today = new Date().toISOString().slice(0,10);
+    var date = (dateEl && dateEl.value) ? dateEl.value : new Date().toISOString().slice(0,10);
     if(!camp.campaignLog) camp.campaignLog = [];
-    var entry = {date:today, type:type, text:text};
+    var entry = {date:date, type:type, text:text};
     if(type === 'Change'){
       var catEl      = document.getElementById('log-change-cat');
       var whyEl      = document.getElementById('log-change-why');
@@ -3012,8 +3022,9 @@ function wireCampaignLog(camp){
     getCamp(camp.id).campaignLog = camp.campaignLog;
     save('campaigns', campaigns);
     textEl.value = '';
-    if(document.getElementById('log-change-why'))  document.getElementById('log-change-why').value = '';
+    if(document.getElementById('log-change-why'))      document.getElementById('log-change-why').value = '';
     if(document.getElementById('log-change-expected')) document.getElementById('log-change-expected').value = '';
+    setLogDateDefault();
     renderCampaignLog(camp);
   });
 }
