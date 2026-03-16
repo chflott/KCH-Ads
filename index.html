@@ -3084,6 +3084,14 @@ function renderTodos(camp){
   }
   var allDone = done.length >= camp.aiTodos.length;
   if(banner) banner.style.display = allDone ? 'flex' : 'none';
+
+  // Update progress counter
+  var progNum  = document.getElementById('prog-num');
+  var progFill = document.getElementById('prog-fill');
+  var total = camp.aiTodos.length;
+  var completed = done.length;
+  if(progNum)  progNum.textContent  = completed + ' / ' + total;
+  if(progFill) progFill.style.width = (total > 0 ? Math.round(completed/total*100) : 0) + '%';
 }
 
 function toggleTodo(i){
