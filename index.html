@@ -1226,11 +1226,6 @@ function renderDILog(camp){
       var qsTd = tr.children[8];
       qsTd.style.color = e.qs < 5 ? '#dc2626' : e.qs < 7 ? '#d97706' : '#15803d';
     }
-    if(e.gconv != null && e.leads != null && Math.abs(e.gconv - e.leads) > 1){
-      var gcTd = tr.children[9];
-      gcTd.style.color = '#dc2626';
-      gcTd.title = 'Mismatch with logged leads - check conversion tracking';
-    }
     var tdBtn = document.createElement('td');
     tdBtn.style.cssText = 'padding:8px 6px;text-align:center;white-space:nowrap;';
     var editBtn = document.createElement('button');
@@ -1253,7 +1248,7 @@ function renderDILog(camp){
   card.appendChild(wrap);
   var legend = document.createElement('div');
   legend.style.cssText = 'padding:8px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);line-height:1.8;';
-  legend.innerHTML = 'IS%: <span style="color:#dc2626;">red</span>&lt;20 <span style="color:#d97706;">amber</span>&lt;40 <span style="color:#15803d;">green</span>40+&nbsp;&nbsp;|&nbsp;&nbsp;QS: <span style="color:#dc2626;">red</span>&lt;5 <span style="color:#d97706;">amber</span>&lt;7 <span style="color:#15803d;">green</span>7+&nbsp;&nbsp;|&nbsp;&nbsp;<span style="color:#dc2626;">Red G.Conv</span>=tracking mismatch';
+  legend.innerHTML = 'IS%: <span style="color:#dc2626;">red</span>&lt;20 <span style="color:#d97706;">amber</span>&lt;40 <span style="color:#15803d;">green</span>40+&nbsp;&nbsp;|&nbsp;&nbsp;QS: <span style="color:#dc2626;">red</span>&lt;5 <span style="color:#d97706;">amber</span>&lt;7 <span style="color:#15803d;">green</span>7+';
   card.appendChild(legend);
   el.appendChild(card);
 }
@@ -1859,8 +1854,7 @@ function renderPerfLog(camp){
     var ctrCls = ctrVal==='—' ? '' : (parseFloat(ctrVal)>=5 ? 'style="color:var(--green);font-weight:700;"' : parseFloat(ctrVal)>=2 ? 'style="color:var(--amber);font-weight:700;"' : 'style="color:var(--red);font-weight:700;"');
     var isCls = e.is===null||e.is===undefined?'':e.is<20?'style="color:var(--red);font-weight:700;"':e.is<40?'style="color:var(--amber);font-weight:700;"':'style="color:var(--green);font-weight:700;"';
     var qsCls = e.qs===null||e.qs===undefined?'':e.qs<5?'style="color:var(--red);font-weight:700;"':e.qs<7?'style="color:var(--amber);font-weight:700;"':'style="color:var(--green);font-weight:700;"';
-    var gMismatch = e.gconv!==null&&e.gconv!==undefined&&Math.abs(e.gconv-e.leads)>1;
-    var gStyle = gMismatch?'style="color:var(--red);font-weight:700;"':'';
+    var gStyle = '';
     var dateStr = new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
     tbl += '<tr>'
       + '<td style="font-weight:600;white-space:nowrap;">'+dateStr+'</td>'
