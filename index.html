@@ -848,14 +848,14 @@ function renderHome() {
 // ── CAMPAIGN PAGE ────────────────────────
 function renderCampaign(camp) {
   var tabs = camp.type === 'search'
-    ? ['input','performance','checklist','keywords','changes','season']
+    ? ['input','performance','checklist','keywords','season']
     : camp.type === 'pmax'
-    ? ['input','performance','changes']
-    : ['input','performance','changes','keywords'];
+    ? ['input','performance']
+    : ['input','performance','keywords'];
 
   var tabNames = {
     input: 'Daily Input', performance: 'Performance', recovery: 'Recovery', checklist: 'Weekly To-Do',
-    keywords: 'Negative Keywords', changes: 'Change Log',
+    keywords: 'Negative Keywords',
     season: 'Seasonality'
   };
 
@@ -890,7 +890,6 @@ function renderCampaign(camp) {
         }
         if(tabId === 'checklist')  { initChecklist(c); setTimeout(function(){ wireAllAI(c); }, 50); }
         if(tabId === 'keywords')   { renderNG(c); wireNegButtons(c); }
-        if(tabId === 'changes')    { renderCL(c); wireCLButtons(c); }
       });
       tabBar.appendChild(btn);
 
@@ -904,9 +903,7 @@ function renderCampaign(camp) {
   }
 
   // Init dynamic content
-  renderCL(camp);
   renderNG(camp);
-  wireCLButtons(camp);
   initRecovery(camp);
   setTimeout(function(){ checkWarnings(camp); }, 100);
   initChecklist(camp);
@@ -1020,8 +1017,6 @@ function buildScreen(id, camp){
   if(id==='recovery') return buildRecovery(camp);
   if(id==='checklist') return buildChecklist(camp);
   if(id==='keywords') return buildKeywords(camp);
-  if(id==='changes') return buildChanges(camp);
-  if(id==='negatives') return buildNegatives(camp);
   if(id==='season') return buildSeason();
   if(id==='signals') return buildSignals();
   return '';
@@ -1991,10 +1986,18 @@ async function getPerfAI(){
     + '- CONVERSION SETUP: The only conversion tracked in Google Ads is a GA4 micro-conversion (3 page views on site). This is an algorithm-training signal, NOT a booking.\n'
     + '- Calendly bookings are the real business outcome, tracked manually outside Google Ads. 2 bookings were recorded recently — that is a strong result for this stage.\n'
     + '- Daily signals that actually matter: CTR (5%+ is strong for hardscape), IS% (want it trending up), CPC (under $25 is healthy), spend vs budget ratio.\n';
+  var recentChangesPerf = (camp.campaignLog||[]).filter(function(e){ return e.type==='Change'; }).slice(-5).map(function(e){
+    var s = e.date+' — '+(e.cat||'Change')+': '+e.text;
+    if(e.why) s += ' (Why: '+e.why+')';
+    if(e.outcome) s += ' [Outcome: '+e.outcome+']';
+    return s;
+  }).join('\n') || 'No changes logged.';
+
   var prompt = 'You are a Google Ads analyst advising Kansas City Hardscapes (KCH), a premium hardscape contractor in KC metro. Daily budget: $'+camp.budget+'. Campaign reset '+camp.resetDate+'. Currently Day '+days+' of learning phase recovery.\n\n'
     + kchCtx + '\n'
     + 'DAILY PERFORMANCE LOG:\n'+logSummary+'\n\n'
     + 'TOTALS: $'+totalSpend.toFixed(0)+' spend, '+totalLeads+' leads, avg CPL '+(avgCPL?'$'+avgCPL:'N/A')+'\n\n'
+    + 'RECENT CAMPAIGN CHANGES:\n'+recentChangesPerf+'\n\n'
     + 'Write a plain-English performance summary covering:\n'
     + '1. TREND — Is CTR, IS%, and spend efficiency improving, declining, or flat?\n'
     + '2. RECOVERY PROGRESS — Is the algorithm behaving as expected for Day '+days+'?\n'
@@ -2193,17 +2196,23 @@ function buildChecklist(camp){
   var logCard = document.createElement('div');
   logCard.className = 'card';
   logCard.style.marginTop = '12px';
-  logCard.innerHTML = '<div class="card-head"><h3>Campaign Log</h3><p>Dated findings, decisions, and observations. The AI reads this when generating your to-do list.</p></div>'
+  logCard.innerHTML = '<div class="card-head"><h3>Campaign Log</h3><p>Dated findings, decisions, observations, and changes. The AI reads this when generating your weekly to-do list and performance analysis.</p></div>'
     + '<div class="card-body">'
-    + '<div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-start;">'
-    + '<select id="log-entry-type" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--stone);background:white;cursor:pointer;">'
+    + '<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;flex-wrap:wrap;">'
+    + '<select id="log-entry-type" onchange="toggleChangeFields()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--stone);background:white;cursor:pointer;">'
     + '<option value="Finding">Finding</option>'
     + '<option value="Decision">Decision</option>'
     + '<option value="Observation">Observation</option>'
     + '<option value="Result">Result</option>'
+    + '<option value="Change">Change</option>'
     + '</select>'
-    + '<textarea id="log-entry-text" placeholder="e.g. Search terms report: top spend term is patio contractor KC — premium intent. Found patio ideas burning $40 with zero conversions — adding as negative." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--stone);resize:vertical;min-height:60px;font-family:inherit;line-height:1.5;"></textarea>'
+    + '<textarea id="log-entry-text" placeholder="e.g. Search terms report: top spend term is patio contractor KC — premium intent. Found patio ideas burning $40 with zero conversions — adding as negative." style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--stone);resize:vertical;min-height:60px;font-family:inherit;line-height:1.5;"></textarea>'
     + '<button id="log-entry-save" class="btn btn-gold" style="white-space:nowrap;padding:8px 14px;font-size:12px;">Add Entry</button>'
+    + '</div>'
+    + '<div id="log-change-fields" style="display:none;gap:8px;margin-bottom:8px;flex-wrap:wrap;">'
+    + '<select id="log-change-cat" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--stone);background:white;"><option>Bidding Strategy</option><option>Budget</option><option>Negative Keywords</option><option>Ad Copy</option><option>Landing Page</option><option>Targeting</option><option>Conversion Tracking</option><option>Ad Schedule</option><option>Other</option></select>'
+    + '<input type="text" id="log-change-why" placeholder="Why this change?" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">'
+    + '<input type="text" id="log-change-expected" placeholder="Expected outcome?" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">'
     + '</div>'
     + '<div id="campaign-log-list"></div>'
     + '</div>';
@@ -2266,34 +2275,6 @@ function buildKeywords(camp){
 
 
 // ── CHANGE LOG ────────────────────────────
-function buildChanges(camp){
-  return '<div class="alert alert-neutral"><strong>Log every campaign change you make.</strong> When performance shifts — good or bad — this is how you\'ll know exactly what caused it.</div>'
-  +'<div class="card"><div class="card-head"><h3>Log a Change</h3><p>Record what changed, why, and what you expected. Fill in the actual outcome later.</p></div><div class="card-body">'
-  +'<div class="input-grid" style="margin-bottom:10px;">'
-  +'<div class="mf"><label>Date</label><input type="date" id="cl-date" style="font-size:13px;font-weight:500;font-family:inherit;"></div>'
-  +'<div class="mf"><label>Category</label><select id="cl-cat" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option>Bidding Strategy</option><option>Budget</option><option>Keywords</option><option>Negative Keywords</option><option>Ad Copy</option><option>Landing Page</option><option>Targeting</option><option>Conversion Tracking</option><option>Ad Schedule</option><option>Other</option></select></div>'
-  +'</div>'
-  +'<div class="mf" style="margin-bottom:10px;"><label>What Changed</label><input type="text" id="cl-what" placeholder="e.g. Switched from Target CPA to Maximize Conversions" style="font-size:13px;font-family:inherit;"></div>'
-  +'<div class="mf" style="margin-bottom:10px;"><label>Why</label><input type="text" id="cl-why" placeholder="e.g. Learning phase reset after conversion goal change" style="font-size:13px;font-family:inherit;"></div>'
-  +'<div class="mf" style="margin-bottom:12px;"><label>Expected Outcome</label><input type="text" id="cl-expected" placeholder="e.g. Impressions should return in 5–7 days" style="font-size:13px;font-family:inherit;"></div>'
-  +'<button class="btn btn-gold" onclick="addChange()">Log Change</button><span class="saved" id="cl-saved">Logged</span>'
-  +'</div></div>'
-  +'<div id="cl-list"></div>'  +'<div class="card" style="margin-top:16px;">'  +'<div class="card-head"><h3>AI Change Analyzer</h3>'  +'<p>Reads your most recent logged change alongside your performance history and tells you if it looks smart, risky, or needs watching.</p></div>'  +'<div class="card-body">'  +'<div id="cl-ai-output" style="display:none;margin-bottom:12px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'  +'<div id="cl-ai-loading" style="display:none;text-align:center;padding:14px;color:var(--muted);font-size:13px;">Analyzing this change...</div>'  +'<button class="btn btn-gold" id="cl-ai-btn" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Analyze Latest Change</button>'  +'</div></div>';}
-
-// ── NEGATIVES ─────────────────────────────
-function buildNegatives(camp){
-  return '<div class="alert alert-neutral"><strong>Your negative keyword list is your most important budget protection tool.</strong> Check off each one as you add it to Google Ads. Add new ones weekly from your Search Terms Report.</div>'
-  +'<div class="card"><div class="card-head"><h3>Add Negative Keyword</h3></div><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">'
-  +'<div class="mf" style="flex:1;min-width:200px;margin-bottom:0;"><label>Keyword</label><input type="text" id="neg-input" placeholder="e.g. cheap patio ideas" style="font-size:13px;font-family:inherit;" onkeydown="if(event.key===\'Enter\')addNeg()"></div>'
-  +'<button class="btn btn-gold" onclick="addNeg()">Add</button><span class="saved" id="neg-saved">Added</span>'
-  +'</div></div>'
-  +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">'
-  +'<div style="font-size:11px;color:var(--muted);">Check off each keyword after adding it in Google Ads. <span id="neg-count" style="font-weight:700;color:var(--stone);"></span></div>'
-  +'<button class="btn btn-ghost" onclick="copyNegs()" style="font-size:11px;">Copy All to Clipboard</button>'
-  +'</div>'
-  +'<div id="neg-list"></div>'  +'<div class="card" style="margin-top:16px;">'  +'<div class="card-head">'  +'<h3>AI Negative Keyword Recommendations</h3>'  +'<p>Reviews your current negative list, active keywords, and KCH campaign context to surface wasteful search terms you may be missing.</p>'  +'</div>'  +'<div class="card-body">'  +'<button class="btn btn-gold" id="neg-ai-btn" onclick="getNegRec()" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Find Missing Negative Keywords</button>'  +'<div id="neg-ai-loading" style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">Reviewing your negative keyword coverage...</div>'  +'<div id="neg-ai-output" style="display:none;margin-top:14px;font-size:13px;line-height:1.8;color:var(--stone);"></div>'  +'</div></div>';
-}
-
 // ── SEASON ────────────────────────────────
 function buildSeason(){
   var mos=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2597,16 +2578,26 @@ async function generateTodos(){
     perfSummary = 'Last '+recent.length+' days: $'+ts.toFixed(0)+' spend, '+tl+' leads, avg CPL '+(tl>0?'$'+Math.round(ts/tl):'N/A');
   }
 
-  var recentChanges = (camp.changes||[]).slice(0,3).map(function(c){
-    return c.date+' — '+c.cat+': '+c.what;
-  }).join('\n') || 'No recent changes.';
+  var recentChanges = (camp.campaignLog||[]).filter(function(e){ return e.type==='Change'; }).slice(-5).map(function(e){
+    var s = e.date+' — '+(e.cat||'Change')+': '+e.text;
+    if(e.why) s += ' (Why: '+e.why+')';
+    if(e.outcome) s += ' [Outcome: '+e.outcome+']';
+    return s;
+  }).join('\n') || 'No recent changes logged.';
 
   var pendingNegs = (camp.negatives||[]).filter(function(n){ return !n.added; }).map(function(n){ return n.text; }).join(', ') || 'None';
   var histCtx = buildHistoryContext(camp.id, 'todos', 'weekly to-do analyses');
   var campLogSummary = 'None yet.';
   if(camp.campaignLog && camp.campaignLog.length > 0){
-    campLogSummary = camp.campaignLog.slice(-10).map(function(e){
-      return '['+e.date+'] '+e.type+': '+e.text;
+    campLogSummary = camp.campaignLog.slice(-15).map(function(e){
+      var s = '['+e.date+'] '+e.type+': '+e.text;
+      if(e.type==='Change'){
+        if(e.cat) s += ' | Category: '+e.cat;
+        if(e.why) s += ' | Why: '+e.why;
+        if(e.expected) s += ' | Expected: '+e.expected;
+        if(e.outcome) s += ' | Outcome: '+e.outcome;
+      }
+      return s;
     }).join('\n');
   }
 
@@ -2712,49 +2703,8 @@ async function generateTodos(){
 }
 
 
-function setChangeDateDefault(){
-  var el=document.getElementById('cl-date');if(!el)return;
-  var t=new Date();
-  el.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
-}
 
-function wireCLButtons(camp){
-  // AI wiring handled by wireAllAI
-}
 
-async function getChangeAI(){
-  var camp = getCamp(activeCampId);
-  if(!camp || !camp.changes || camp.changes.length === 0){ alert('Log a change first.'); return; }
-  var btn     = document.getElementById('cl-ai-btn');
-  var loading = document.getElementById('cl-ai-loading');
-  var output  = document.getElementById('cl-ai-output');
-  aiStart(btn, loading, output);
-
-  var latest = camp.changes[0];
-  var days   = getDaysFor(camp.resetDate);
-  var allChanges = camp.changes.slice(0,5).map(function(c){
-    return c.date+' ['+c.cat+']: '+c.what+(c.outcome?' → Outcome: '+c.outcome:'');
-  }).join('\n');
-
-  var prompt = 'You are a Google Ads strategist advising Kansas City Hardscapes, a premium hardscape contractor in KC metro. $'+camp.budget+'/day budget. Day '+days+' of recovery.\n\n'
-    + 'LATEST CHANGE:\nDate: '+latest.date+'\nCategory: '+latest.cat+'\nWhat: '+latest.what+'\nWhy: '+latest.why+'\nExpected: '+latest.expected+'\n\n'
-    + 'RECENT CHANGE HISTORY:\n'+allChanges+'\n\n'
-    + 'Analyze this change and provide:\n'
-    + 'IMPACT: What effect will this have on the campaign and when?\n'
-    + 'RISK: Any downside risks given where this campaign is right now?\n'
-    + 'WATCH FOR: One metric to monitor over the next 7 days.\n\n'
-    + 'Be specific to this exact change and campaign stage. No filler. Under 200 words.'
-    + buildHistoryContext(camp.id, 'changes', 'change log analyses');
-
-  try {
-    var text = await callAI(prompt, 600);
-    aiDone(loading);
-    aiShowResult(output, btn, text, camp.id, 'changes');
-  } catch(e) {
-    aiDone(loading);
-    aiError(output, btn);
-  }
-}
 
 
 async function getNegRec(){
@@ -2939,82 +2889,6 @@ function copyNegs(){
   });
 }
 
-// ── CHANGE LOG FUNCTIONS ─────────────────
-function renderCL(camp){
-  var el = document.getElementById('cl-list');
-  if(!el) return;
-  var changes = camp.changes || [];
-  if(!changes.length){
-    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">No changes logged yet.</div>';
-    return;
-  }
-  var catColors = {
-    'Bidding Strategy':{bg:'#fce7f3',color:'#9d174d'},
-    'Budget':{bg:'#fffbeb',color:'#78350f'},
-    'Keywords':{bg:'#f0faf5',color:'#155e3e'},
-    'Negative Keywords':{bg:'#f0faf5',color:'#155e3e'},
-    'Ad Copy':{bg:'#eff4ff',color:'#1e3a8a'},
-    'Landing Page':{bg:'#eff4ff',color:'#1e3a8a'},
-    'Targeting':{bg:'#fff5f5',color:'#991b1b'},
-    'Conversion Tracking':{bg:'#fce7f3',color:'#9d174d'},
-    'Ad Schedule':{bg:'#fffbeb',color:'#78350f'},
-    'Other':{bg:'#f5f3ef',color:'var(--muted)'}
-  };
-  el.innerHTML = changes.map(function(c, i){
-    var cc = catColors[c.cat] || {bg:'#f5f3ef',color:'var(--muted)'};
-    return '<div style="padding:14px 0;border-bottom:1px solid var(--border-lt);">'
-      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">'
-      + '<div style="flex:1;">'
-      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">'
-      + '<span style="font-size:11px;font-weight:700;color:var(--muted);">'+c.date+'</span>'
-      + '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:'+cc.bg+';color:'+cc.color+';">'+c.cat+'</span>'
-      + '</div>'
-      + '<div style="font-size:13px;font-weight:600;color:var(--stone);margin-bottom:4px;">'+c.what+'</div>'
-      + (c.why ? '<div style="font-size:12px;color:var(--muted);">Why: '+c.why+'</div>' : '')
-      + (c.expected ? '<div style="font-size:12px;color:var(--muted);">Expected: '+c.expected+'</div>' : '')
-      + (c.outcome ? '<div style="font-size:12px;color:var(--green);margin-top:4px;font-weight:600;">Outcome: '+c.outcome+'</div>' : '<div style="margin-top:6px;"><input type="text" placeholder="Log actual outcome..." onchange="updateOutcome('+i+',this.value)" style="font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-family:inherit;width:100%;max-width:340px;"></div>')
-      + '</div>'
-      + '<button onclick="removeCL('+i+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;">×</button>'
-      + '</div></div>';
-  }).join('');
-}
-
-function addChange(){
-  var camp = getCamp(activeCampId); if(!camp) return;
-  var what = document.getElementById('cl-what').value.trim();
-  if(!what){ alert('Please describe what changed.'); return; }
-  if(!camp.changes) camp.changes = [];
-  camp.changes.unshift({
-    id: Date.now(),
-    date: document.getElementById('cl-date').value || new Date().toISOString().split('T')[0],
-    cat: document.getElementById('cl-cat').value,
-    what: what,
-    why: document.getElementById('cl-why').value.trim(),
-    expected: document.getElementById('cl-expected').value.trim(),
-    outcome: ''
-  });
-  save('campaigns', campaigns);
-  document.getElementById('cl-what').value = '';
-  document.getElementById('cl-why').value = '';
-  document.getElementById('cl-expected').value = '';
-  var m = document.getElementById('cl-saved');
-  if(m){ m.style.display='inline'; setTimeout(function(){ m.style.display='none'; }, 2000); }
-  renderCL(camp);
-}
-
-function updateOutcome(idx, val){
-  var camp = getCamp(activeCampId); if(!camp) return;
-  if(camp.changes && camp.changes[idx]) camp.changes[idx].outcome = val;
-  save('campaigns', campaigns);
-}
-
-function removeCL(idx){
-  var camp = getCamp(activeCampId); if(!camp) return;
-  camp.changes.splice(idx, 1);
-  save('campaigns', campaigns);
-  renderCL(camp);
-}
-
 // ── WIRE KW BUTTONS ──────────────────────
 function wireNegButtons(camp){
   var negAdd  = document.getElementById('neg-add-btn');
@@ -3023,12 +2897,6 @@ function wireNegButtons(camp){
   if(negAdd)  negAdd.addEventListener('click', addNeg);
   if(negCopy) negCopy.addEventListener('click', copyNegs);
   if(negIn)   negIn.addEventListener('keydown', function(e){ if(e.key==='Enter') addNeg(); });
-}
-
-// ── WIRE CL BUTTONS ──────────────────────
-function wireCLButtons(camp){
-  // AI wiring handled by wireAllAI
-  setChangeDateDefault();
 }
 
 // ── WIRE ALL AI BUTTONS ──────────────────
@@ -3050,7 +2918,6 @@ function wireAllAI(camp){
     getPerfAI();
   });
   rewire('todo-ai-btn',  generateTodos);
-  rewire('cl-ai-btn',    getChangeAI);
   rewire('neg-ai-btn',   getNegRec);
   rewire('ai-rec-btn',   getAIRec);
 }
@@ -3079,7 +2946,13 @@ function renderCampaignLog(camp){
     list.innerHTML = '<div style="padding:12px 0;color:var(--muted);font-size:12px;text-align:center;">No entries yet. Add your first finding above.</div>';
     return;
   }
-  var typeColors = {'Finding':{bg:'#eff4ff',color:'#1e3a8a'},'Decision':{bg:'#fce7f3',color:'#9d174d'},'Observation':{bg:'#f0faf5',color:'#155e3e'},'Result':{bg:'#fefce8',color:'#854d0e'}};
+  var typeColors = {
+    'Finding':     {bg:'#eff4ff',color:'#1e3a8a'},
+    'Decision':    {bg:'#fce7f3',color:'#9d174d'},
+    'Observation': {bg:'#f0faf5',color:'#155e3e'},
+    'Result':      {bg:'#fefce8',color:'#854d0e'},
+    'Change':      {bg:'#fff1f2',color:'#9f1239'}
+  };
   list.innerHTML = entries.map(function(e, ri){
     var tc = typeColors[e.type] || {bg:'#f5f3ef',color:'var(--muted)'};
     var realIdx = (camp.campaignLog.length - 1) - ri;
@@ -3087,11 +2960,30 @@ function renderCampaignLog(camp){
     h += '<div style="display:flex;flex-direction:column;gap:4px;min-width:80px;">';
     h += '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:'+tc.bg+';color:'+tc.color+';text-align:center;">'+e.type+'</span>';
     h += '<span style="font-size:10px;color:var(--muted);text-align:center;">'+e.date+'</span></div>';
-    h += '<div style="flex:1;font-size:12px;color:var(--stone);line-height:1.6;">'+e.text+'</div>';
+    h += '<div style="flex:1;font-size:12px;color:var(--stone);line-height:1.6;">';
+    h += e.text;
+    if(e.type === 'Change'){
+      if(e.cat) h += '<div style="margin-top:4px;font-size:11px;color:var(--muted);">Category: <strong>'+e.cat+'</strong></div>';
+      if(e.why) h += '<div style="font-size:11px;color:var(--muted);">Why: '+e.why+'</div>';
+      if(e.expected) h += '<div style="font-size:11px;color:var(--muted);">Expected: '+e.expected+'</div>';
+      if(e.outcome){
+        h += '<div style="font-size:11px;color:var(--green);font-weight:600;margin-top:2px;">Outcome: '+e.outcome+'</div>';
+      } else {
+        h += '<div style="margin-top:6px;"><input type="text" placeholder="Log actual outcome..." onchange="updateCampLogOutcome('+realIdx+',this.value)" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-family:inherit;width:100%;max-width:320px;"></div>';
+      }
+    }
+    h += '</div>';
     h += '<button onclick="deleteCampaignLogEntry('+realIdx+')" title="Delete" class="del-btn" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:14px;padding:0 2px;flex-shrink:0;">&#x2715;</button>';
     h += '</div>';
     return h;
   }).join('');
+}
+
+function toggleChangeFields(){
+  var typeEl = document.getElementById('log-entry-type');
+  var fields = document.getElementById('log-change-fields');
+  if(!typeEl || !fields) return;
+  fields.style.display = typeEl.value === 'Change' ? 'flex' : 'none';
 }
 
 function wireCampaignLog(camp){
@@ -3099,17 +2991,29 @@ function wireCampaignLog(camp){
   if(!saveBtn || saveBtn._logWired) return;
   saveBtn._logWired = true;
   saveBtn.addEventListener('click', function(){
-    var typeEl = document.getElementById('log-entry-type');
-    var textEl = document.getElementById('log-entry-text');
+    var typeEl    = document.getElementById('log-entry-type');
+    var textEl    = document.getElementById('log-entry-text');
     var text = textEl ? textEl.value.trim() : '';
     if(!text) return;
     var type = typeEl ? typeEl.value : 'Finding';
     var today = new Date().toISOString().slice(0,10);
     if(!camp.campaignLog) camp.campaignLog = [];
-    camp.campaignLog.push({date:today, type:type, text:text});
+    var entry = {date:today, type:type, text:text};
+    if(type === 'Change'){
+      var catEl      = document.getElementById('log-change-cat');
+      var whyEl      = document.getElementById('log-change-why');
+      var expectedEl = document.getElementById('log-change-expected');
+      entry.cat      = catEl      ? catEl.value.trim()      : '';
+      entry.why      = whyEl      ? whyEl.value.trim()      : '';
+      entry.expected = expectedEl ? expectedEl.value.trim() : '';
+      entry.outcome  = '';
+    }
+    camp.campaignLog.push(entry);
     getCamp(camp.id).campaignLog = camp.campaignLog;
     save('campaigns', campaigns);
     textEl.value = '';
+    if(document.getElementById('log-change-why'))  document.getElementById('log-change-why').value = '';
+    if(document.getElementById('log-change-expected')) document.getElementById('log-change-expected').value = '';
     renderCampaignLog(camp);
   });
 }
@@ -3120,6 +3024,12 @@ function deleteCampaignLogEntry(idx){
   camp.campaignLog.splice(idx, 1);
   save('campaigns', campaigns);
   renderCampaignLog(camp);
+}
+
+function updateCampLogOutcome(idx, val){
+  var camp = getCamp(activeCampId); if(!camp) return;
+  if(camp.campaignLog && camp.campaignLog[idx]) camp.campaignLog[idx].outcome = val;
+  save('campaigns', campaigns);
 }
 
 function renderTodos(camp){
