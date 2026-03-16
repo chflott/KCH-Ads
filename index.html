@@ -2228,17 +2228,34 @@ function buildChecklist(camp){
 function buildKeywords(camp){
   // Negatives only — keyword tracking removed as redundant with Google Ads
   return '<div class="alert alert-neutral"><strong>Your negative keyword list is your most important budget protection tool.</strong> Every irrelevant click wastes budget and corrupts algorithm learning. Add new negatives weekly from your Search Terms Report.</div>'
-    + '<div class="card"><div class="card-head"><h3>Add Negative Keyword</h3><p>Log a negative keyword and check it off after adding it in Google Ads.</p></div>'
+
+    // ── Single add ──
+    + '<div class="card"><div class="card-head"><h3>Add Negative Keyword</h3><p>Log a keyword and check it off after adding it in Google Ads.</p></div>'
     + '<div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">'
-    + '<div class="mf" style="flex:1;min-width:200px;margin-bottom:0;"><label>Keyword</label><input type="text" id="neg-input" placeholder="e.g. cheap patio ideas, DIY patio, free estimate" style="font-size:13px;font-family:inherit;" onkeydown="if(event.key===\'Enter\')addNeg()"></div>'
+    + '<div class="mf" style="flex:1;min-width:200px;margin-bottom:0;"><label>Keyword</label><input type="text" id="neg-input" placeholder="e.g. cheap patio ideas" style="font-size:13px;font-family:inherit;" onkeydown="if(event.key===\'Enter\')addNeg()"></div>'
     + '<div class="mf" style="min-width:120px;margin-bottom:0;"><label>Match Type</label><select id="neg-match" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;font-size:13px;color:var(--stone);background:var(--surface);outline:none;"><option value="Broad">Broad</option><option value="Phrase">Phrase</option><option value="Exact">Exact</option></select></div>'
     + '<button class="btn btn-gold" id="neg-add-btn" onclick="addNeg()">Add</button><span class="saved" id="neg-saved">Added</span>'
     + '</div></div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;flex-wrap:wrap;gap:8px;">'
-    + '<div style="font-size:11px;color:var(--muted);">Check the box after you\'ve added each one in Google Ads. <span id="neg-count" style="font-weight:700;color:var(--stone);"></span></div>'
+
+    // ── Bulk import ──
+    + '<div class="card" style="margin-top:12px;"><div class="card-head"><h3>Bulk Import</h3><p>Paste a list of keywords — one per line. Use <code>[brackets]</code> for Exact, <code>"quotes"</code> for Phrase, or plain text for Broad. Mixed lists are fine.</p></div>'
+    + '<div class="card-body">'
+    + '<textarea id="neg-bulk-input" placeholder="[cherry landscaping]\n[hinkle outdoor living]\ncost to\ncheap\n&quot;patio ideas&quot;" style="width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:monospace;color:var(--stone);resize:vertical;line-height:1.6;box-sizing:border-box;"></textarea>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">'
+    + '<button class="btn btn-gold" id="neg-bulk-btn" onclick="addNegBulk()">Import All</button>'
+    + '<span class="saved" id="neg-bulk-saved">Imported</span>'
+    + '<span id="neg-bulk-count" style="font-size:12px;color:var(--muted);"></span>'
+    + '</div></div></div>'
+
+    // ── List header ──
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px;flex-wrap:wrap;gap:8px;">'
+    + '<div style="font-size:11px;color:var(--muted);">Check the box after adding each one in Google Ads. <span id="neg-count" style="font-weight:700;color:var(--stone);"></span></div>'
     + '<button class="btn btn-ghost" id="neg-copy-btn" style="font-size:11px;">Copy All to Clipboard</button>'
     + '</div>'
     + '<div id="neg-list"></div>'
+    + '<div id="neg-pagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap;"></div>'
+
+    // ── AI card ──
     + '<div class="card" style="margin-top:16px;"><div class="card-head"><h3>AI Negative Keyword Recommendations</h3>'
     + '<p>Reviews your current negative list and KCH campaign context to surface wasteful search terms you may be missing.</p></div>'
     + '<div class="card-body"><button class="btn btn-gold" id="neg-ai-btn" onclick="getNegRec()" style="width:100%;justify-content:center;font-size:13px;padding:12px;">Find Missing Negative Keywords</button>'
@@ -2785,23 +2802,33 @@ function getChicagoWeekKey(){
 
 
 // ── NEGATIVE KEYWORD FUNCTIONS ───────────
-function renderNG(camp){
+var negPage = 0;
+var NEG_PAGE_SIZE = 50;
+
+function renderNG(camp, page){
   var el = document.getElementById('neg-list');
   if(!el) return;
+  if(page !== undefined) negPage = page;
   var negs = camp.negatives || [];
   var cnt = document.getElementById('neg-count');
   var added = negs.filter(function(n){ return n.added; }).length;
   if(cnt) cnt.textContent = added + ' of ' + negs.length + ' added to Google Ads';
   if(!negs.length){
     el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">No negative keywords yet.</div>';
+    var pg = document.getElementById('neg-pagination'); if(pg) pg.innerHTML = '';
     return;
   }
+  var totalPages = Math.ceil(negs.length / NEG_PAGE_SIZE);
+  if(negPage >= totalPages) negPage = totalPages - 1;
+  var start = negPage * NEG_PAGE_SIZE;
+  var pageNegs = negs.slice(start, start + NEG_PAGE_SIZE);
   var matchColors = {
     'Broad':  {bg:'#fef9c3',color:'#78350f'},
     'Phrase': {bg:'#eff4ff',color:'#1e3a8a'},
     'Exact':  {bg:'#f0faf5',color:'#155e3e'}
   };
-  el.innerHTML = negs.map(function(n, i){
+  el.innerHTML = pageNegs.map(function(n, pi){
+    var i = start + pi; // real index
     var mc = matchColors[n.match] || matchColors['Broad'];
     var badge = '<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:'+mc.bg+';color:'+mc.color+';white-space:nowrap;">'+(n.match||'Broad')+'</span>';
     return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-lt);">'
@@ -2811,6 +2838,22 @@ function renderNG(camp){
       + '<button onclick="removeNeg('+i+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 6px;">×</button>'
       + '</div>';
   }).join('');
+
+  // Pagination controls
+  var pg = document.getElementById('neg-pagination');
+  if(pg){
+    if(totalPages <= 1){ pg.innerHTML = ''; return; }
+    var btns = '';
+    var btnBase = 'padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--white);color:var(--muted);';
+    var btnActive = 'padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--stone);background:var(--stone);color:#fff;';
+    btns += '<button style="'+btnBase+'" onclick="renderNG(getCamp(activeCampId),'+(negPage-1)+')" '+(negPage===0?'disabled':'')+'>&lsaquo; Prev</button>';
+    for(var p = 0; p < totalPages; p++){
+      btns += '<button style="'+(p===negPage?btnActive:btnBase)+'" onclick="renderNG(getCamp(activeCampId),'+p+')">'+(p+1)+'</button>';
+    }
+    btns += '<button style="'+btnBase+'" onclick="renderNG(getCamp(activeCampId),'+(negPage+1)+')" '+(negPage===totalPages-1?'disabled':'')+'>&rsaquo; Next</button>';
+    btns += '<span style="font-size:11px;color:var(--muted);margin-left:6px;">Page '+(negPage+1)+' of '+totalPages+' &nbsp;('+negs.length+' total)</span>';
+    pg.innerHTML = btns;
+  }
 }
 
 function addNeg(){
@@ -2828,10 +2871,50 @@ function addNeg(){
   renderNG(camp);
 }
 
+function addNegBulk(){
+  var camp = getCamp(activeCampId); if(!camp) return;
+  var ta = document.getElementById('neg-bulk-input');
+  if(!ta || !ta.value.trim()) return;
+  var lines = ta.value.split('\n');
+  if(!camp.negatives) camp.negatives = [];
+  var added = 0;
+  lines.forEach(function(line){
+    var raw = line.trim();
+    if(!raw) return;
+    var match = 'Broad';
+    var text = raw;
+    // Detect [exact] format
+    if(/^\[.+\]$/.test(raw)){
+      match = 'Exact';
+      text = raw.slice(1, -1).trim();
+    // Detect "phrase" format
+    } else if(/^".+"$/.test(raw)){
+      match = 'Phrase';
+      text = raw.slice(1, -1).trim();
+    }
+    if(!text) return;
+    // Skip duplicates
+    var exists = camp.negatives.some(function(n){ return n.text.toLowerCase() === text.toLowerCase(); });
+    if(exists) return;
+    camp.negatives.push({text: text, match: match, added: false});
+    added++;
+  });
+  save('campaigns', campaigns);
+  ta.value = '';
+  var countEl = document.getElementById('neg-bulk-count');
+  if(countEl) countEl.textContent = added + ' keyword' + (added === 1 ? '' : 's') + ' imported';
+  var m = document.getElementById('neg-bulk-saved');
+  if(m){ m.style.display='inline'; setTimeout(function(){ m.style.display='none'; }, 2500); }
+  renderNG(camp);
+}
+
 function removeNeg(idx){
   var camp = getCamp(activeCampId); if(!camp) return;
   camp.negatives.splice(idx, 1);
   save('campaigns', campaigns);
+  // If removing last item on a page, go back one page
+  var totalPages = Math.ceil((camp.negatives.length) / NEG_PAGE_SIZE);
+  if(negPage >= totalPages && negPage > 0) negPage--;
   renderNG(camp);
 }
 
