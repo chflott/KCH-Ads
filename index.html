@@ -1098,6 +1098,50 @@ function buildInput(camp, container){
   importCard.appendChild(importBody);
   el.appendChild(importCard);
 
+  // ── CALENDLY LEADS IMPORT CARD ─────────────
+  var cyCard = document.createElement('div');
+  cyCard.className = 'card';
+  cyCard.style.marginBottom = '16px';
+  var cyHead = document.createElement('div');
+  cyHead.className = 'card-head';
+  cyHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;';
+  cyHead.innerHTML = '<div><h3 style="margin:0;">📅 Import Leads from Calendly</h3>'
+    + '<p style="margin:4px 0 0;">Upload the Calendly bookings CSV to backfill lead counts by day. Cancellations are skipped.</p></div>'
+    + '<button class="btn btn-ghost" id="btn-toggle-cy" type="button" style="flex-shrink:0;">Show</button>';
+  cyCard.appendChild(cyHead);
+
+  var cyBody = document.createElement('div');
+  cyBody.className = 'card-body';
+  cyBody.id = 'cy-panel';
+  cyBody.style.display = 'none';
+  cyBody.innerHTML =
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6;background:#f0f7ff;padding:10px 12px;border-radius:6px;border:1px solid rgba(59,130,246,.2);">'
+    +   '<strong style="color:var(--ink);">How to get the CSV from Calendly:</strong><br>'
+    +   '1. Calendly → Scheduled Events → set date range<br>'
+    +   '2. Export → Download CSV<br>'
+    +   '3. Paste or upload below. Each booking counts as one lead on its <em>Created Date</em>.'
+    + '</div>'
+    + '<div class="mf" style="margin-bottom:10px;">'
+    +   '<label>Date to credit each booking to</label>'
+    +   '<select id="cy-date-mode" style="font-size:13px;">'
+    +     '<option value="created">Created Date (recommended — matches ad spend day)</option>'
+    +     '<option value="start">Start Date (when meeting happens)</option>'
+    +   '</select>'
+    + '</div>'
+    + '<div class="mf" style="margin-bottom:12px;">'
+    +   '<label>Upload Calendly CSV</label>'
+    +   '<input type="file" accept=".csv,text/csv" id="cy-file" style="font-size:13px;">'
+    + '</div>'
+    + '<div style="text-align:center;font-size:11px;color:var(--muted);margin:8px 0 12px;">— or —</div>'
+    + '<div class="mf" style="margin-bottom:12px;">'
+    +   '<label>Paste CSV text</label>'
+    +   '<textarea id="cy-paste" rows="6" placeholder="Paste Calendly CSV contents here…" style="width:100%;font-family:\'JetBrains Mono\',monospace;font-size:12px;resize:vertical;"></textarea>'
+    + '</div>'
+    + '<button class="btn btn-ghost" id="btn-preview-cy" type="button">Preview Import</button>'
+    + '<div id="cy-preview" style="margin-top:14px;"></div>';
+  cyCard.appendChild(cyBody);
+  el.appendChild(cyCard);
+
   var card = document.createElement('div');
   card.className = 'card';
 
@@ -1199,6 +1243,193 @@ function wireImportUI(){
   }
   var preview = document.getElementById('btn-preview-import');
   if(preview) preview.addEventListener('click', previewImport);
+
+  var cyTog = document.getElementById('btn-toggle-cy');
+  if(cyTog){
+    cyTog.addEventListener('click', function(){
+      var panel = document.getElementById('cy-panel');
+      if(panel.style.display === 'none'){ panel.style.display = 'block'; cyTog.textContent = 'Hide'; }
+      else { panel.style.display = 'none'; cyTog.textContent = 'Show'; }
+    });
+  }
+  var cyFile = document.getElementById('cy-file');
+  if(cyFile){
+    cyFile.addEventListener('change', function(evt){
+      var file = evt.target.files[0];
+      if(!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var ta = document.getElementById('cy-paste');
+        if(ta) ta.value = e.target.result;
+      };
+      reader.readAsText(file);
+    });
+  }
+  var cyPrev = document.getElementById('btn-preview-cy');
+  if(cyPrev) cyPrev.addEventListener('click', previewCalendlyImport);
+}
+
+function parseCalendlyDate(str){
+  if(!str) return null;
+  var s = String(str).trim().replace(/^"|"$/g, '');
+  if(!s) return null;
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if(m) return m[3] + '-' + String(m[1]).padStart(2,'0') + '-' + String(m[2]).padStart(2,'0');
+  var d = new Date(s);
+  if(!isNaN(d.getTime())){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  return null;
+}
+
+function parseCalendlyCSV(text, dateMode){
+  text = String(text || '').replace(/^﻿/, '');
+  var lines = text.split(/\r?\n/).filter(function(l){ return l.trim().length > 0; });
+  if(!lines.length) return { error: 'CSV is empty.' };
+
+  var headerIdx = -1;
+  for(var i = 0; i < lines.length; i++){
+    var lower = lines[i].toLowerCase();
+    if(lower.indexOf('invitee') >= 0 || lower.indexOf('start date') >= 0 || lower.indexOf('created') >= 0){
+      headerIdx = i; break;
+    }
+  }
+  if(headerIdx === -1) return { error: 'Could not find a header row with Invitee / Start Date / Created columns.' };
+
+  var headers = parseCSVLine(lines[headerIdx]).map(function(h){
+    return h.trim().toLowerCase().replace(/^"|"$/g, '');
+  });
+
+  var createdIdx   = findCol(headers, ['created date & time (utc)','created date & time','created at','created date','created']);
+  var startIdx     = findCol(headers, ['start date & time','start date','start time','start']);
+  var cancelledIdx = findCol(headers, ['cancelled','canceled','status']);
+
+  var useIdx = dateMode === 'start' ? startIdx : createdIdx;
+  if(useIdx < 0) useIdx = createdIdx >= 0 ? createdIdx : startIdx;
+  if(useIdx < 0) return { error: 'CSV needs a Created Date or Start Date column.' };
+
+  var counts = {}, skipped = 0, errors = [];
+  for(var j = headerIdx + 1; j < lines.length; j++){
+    var parts = parseCSVLine(lines[j]);
+    if(parts.length < 2) continue;
+
+    if(cancelledIdx >= 0){
+      var cv = (parts[cancelledIdx] || '').trim().toLowerCase().replace(/^"|"$/g, '');
+      if(cv === 'yes' || cv === 'true' || cv === 'cancelled' || cv === 'canceled'){ skipped++; continue; }
+    }
+
+    var raw = parts[useIdx] || '';
+    var dt = parseCalendlyDate(raw);
+    if(!dt){
+      if(raw) errors.push('Row ' + (j - headerIdx) + ': can\'t parse date "' + raw + '"');
+      continue;
+    }
+    counts[dt] = (counts[dt] || 0) + 1;
+  }
+
+  var rows = Object.keys(counts).sort().map(function(d){ return { date: d, leads: counts[d] }; });
+  return { rows: rows, skipped: skipped, errors: errors };
+}
+
+function previewCalendlyImport(){
+  var text = (document.getElementById('cy-paste') || {}).value || '';
+  var mode = (document.getElementById('cy-date-mode') || {}).value || 'created';
+  var previewEl = document.getElementById('cy-preview');
+  if(!text.trim()){
+    previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">Paste a CSV or upload a file first.</div>';
+    return;
+  }
+  var res = parseCalendlyCSV(text, mode);
+  if(res.error){ previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">' + res.error + '</div>'; return; }
+  if(!res.rows.length){ previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">No valid bookings found.</div>'; return; }
+
+  var camp = getCamp(activeCampId);
+  if(!camp){ previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">No active campaign selected.</div>'; return; }
+
+  var existing = {};
+  (camp.perfLog || []).forEach(function(e){ existing[e.date] = e; });
+  var newCount = 0, updCount = 0, totalLeads = 0;
+  res.rows.forEach(function(r){
+    totalLeads += r.leads;
+    if(existing[r.date]) updCount++; else newCount++;
+  });
+  var range = res.rows[0].date + ' → ' + res.rows[res.rows.length - 1].date;
+
+  var html = '<div style="background:#f0f7ff;border:1px solid #3b82f6;border-radius:6px;padding:14px;">';
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">Ready to log <strong>' + totalLeads + '</strong> leads across ' + res.rows.length + ' days into <strong>' + escapeHtml(camp.name) + '</strong></div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Date range: ' + range + (res.skipped ? ' &nbsp; · &nbsp; ' + res.skipped + ' cancellation(s) skipped' : '') + '</div>';
+  html += '<div style="font-size:12px;margin-bottom:12px;">';
+  html += '<span style="color:#059669;font-weight:600;">✓ ' + newCount + ' new day(s)</span>';
+  if(updCount > 0) html += ' &nbsp; <span style="color:#d97706;font-weight:600;">↻ ' + updCount + ' will overwrite existing lead counts</span>';
+  html += '</div>';
+  if(res.errors.length){
+    html += '<div style="font-size:11px;color:#d97706;margin-bottom:10px;">' + res.errors.length + ' row(s) skipped: ' + escapeHtml(res.errors.slice(0,2).join('; ')) + (res.errors.length > 2 ? '…' : '') + '</div>';
+  }
+  html += '<button class="btn btn-gold" id="btn-confirm-cy" type="button">Import ' + totalLeads + ' leads</button>';
+  html += '</div>';
+
+  html += '<div style="margin-top:12px;max-height:220px;overflow-y:auto;font-size:11px;border:1px solid #e5e7eb;border-radius:4px;">';
+  html += '<table style="width:100%;border-collapse:collapse;">';
+  html += '<thead><tr style="background:#f3f4f6;position:sticky;top:0;">';
+  html += '<th style="text-align:left;padding:6px 8px;font-weight:600;">Date</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">Leads</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">Current</th>';
+  html += '</tr></thead><tbody>';
+  res.rows.slice(0, 40).forEach(function(r){
+    var cur = existing[r.date];
+    var isUpd = !!cur;
+    html += '<tr style="border-top:1px solid #e5e7eb;' + (isUpd ? 'background:#fffbeb;' : '') + '">';
+    html += '<td style="padding:4px 8px;">' + r.date + (isUpd ? ' <span style="color:#d97706;font-size:9px;">↻</span>' : '') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;font-weight:700;">' + r.leads + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;color:var(--muted);">' + (cur ? cur.leads : '—') + '</td>';
+    html += '</tr>';
+  });
+  if(res.rows.length > 40){
+    html += '<tr><td colspan="3" style="text-align:center;padding:8px;color:var(--muted);font-style:italic;">…+' + (res.rows.length - 40) + ' more days</td></tr>';
+  }
+  html += '</tbody></table></div>';
+
+  previewEl.innerHTML = html;
+  var confirmBtn = document.getElementById('btn-confirm-cy');
+  if(confirmBtn) confirmBtn.addEventListener('click', function(){ confirmCalendlyImport(res.rows); });
+}
+
+function confirmCalendlyImport(rows){
+  var camp = getCamp(activeCampId);
+  if(!camp){ alert('No active campaign.'); return; }
+  if(!camp.perfLog) camp.perfLog = [];
+  var byDate = {};
+  camp.perfLog.forEach(function(e){ byDate[e.date] = e; });
+
+  rows.forEach(function(r){
+    if(byDate[r.date]){
+      byDate[r.date].leads = r.leads;
+    } else {
+      camp.perfLog.push({
+        date: r.date, impr: 0, clicks: 0, spend: 0, leads: r.leads,
+        cpc: null, is: null, qs: null, gconv: null, ctr: null, temp: null
+      });
+    }
+  });
+  camp.perfLog.sort(function(a, b){ return a.date.localeCompare(b.date); });
+  save('campaigns', campaigns);
+
+  var pasteEl = document.getElementById('cy-paste');
+  var fileEl  = document.getElementById('cy-file');
+  if(pasteEl) pasteEl.value = '';
+  if(fileEl)  fileEl.value  = '';
+  var previewEl = document.getElementById('cy-preview');
+  var totalLeads = rows.reduce(function(a,r){ return a + r.leads; }, 0);
+  if(previewEl){
+    previewEl.innerHTML = '<div style="background:#d1fae5;border:1px solid #059669;border-radius:6px;padding:12px;font-size:13px;color:#065f46;">'
+      + '<strong>✓ Logged ' + totalLeads + ' leads across ' + rows.length + ' days.</strong> Existing days had their lead count updated; other fields untouched.'
+      + '</div>';
+  }
+  renderDILog(camp);
+  renderPerfLog(camp);
+  if(typeof checkWarnings === 'function') checkWarnings(camp);
 }
 
 function parseCSVLine(line){
