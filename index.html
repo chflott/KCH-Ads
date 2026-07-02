@@ -1060,6 +1060,44 @@ function buildInput(camp, container){
   alertDiv.innerHTML = '<strong>Log today\'s numbers from Google Ads.</strong> Every entry builds your performance history. The more you log, the smarter the AI analysis gets.';
   el.appendChild(alertDiv);
 
+  // ── BULK IMPORT CARD ─────────────────────
+  var importCard = document.createElement('div');
+  importCard.className = 'card';
+  importCard.style.marginBottom = '16px';
+  var importHead = document.createElement('div');
+  importHead.className = 'card-head';
+  importHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;';
+  importHead.innerHTML = '<div><h3 style="margin:0;">📥 Bulk Import from Google Ads</h3>'
+    + '<p style="margin:4px 0 0;">Behind on daily logs? Paste or upload a CSV to backfill weeks or months at once.</p></div>'
+    + '<button class="btn btn-ghost" id="btn-toggle-import" type="button" style="flex-shrink:0;">Show</button>';
+  importCard.appendChild(importHead);
+
+  var importBody = document.createElement('div');
+  importBody.className = 'card-body';
+  importBody.id = 'import-panel';
+  importBody.style.display = 'none';
+  importBody.innerHTML =
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6;background:#fef9f0;padding:10px 12px;border-radius:6px;border:1px solid rgba(176,125,46,.2);">'
+    +   '<strong style="color:var(--ink);">How to get the CSV from Google Ads:</strong><br>'
+    +   '1. Open the campaign in Google Ads<br>'
+    +   '2. Segment → Day, then set the date range (e.g. last 90 days)<br>'
+    +   '3. Add columns you have: Impressions, Clicks, Cost, Conversions, CTR, Avg CPC, Search Impr. share<br>'
+    +   '4. Download → CSV, then paste or upload below'
+    + '</div>'
+    + '<div class="mf" style="margin-bottom:12px;">'
+    +   '<label>Upload CSV file</label>'
+    +   '<input type="file" accept=".csv,text/csv" id="csv-file" style="font-size:13px;">'
+    + '</div>'
+    + '<div style="text-align:center;font-size:11px;color:var(--muted);margin:8px 0 12px;">— or —</div>'
+    + '<div class="mf" style="margin-bottom:12px;">'
+    +   '<label>Paste CSV text</label>'
+    +   '<textarea id="csv-paste" rows="6" placeholder="Paste CSV contents here…" style="width:100%;font-family:\'JetBrains Mono\',monospace;font-size:12px;resize:vertical;"></textarea>'
+    + '</div>'
+    + '<button class="btn btn-ghost" id="btn-preview-import" type="button">Preview Import</button>'
+    + '<div id="import-preview" style="margin-top:14px;"></div>';
+  importCard.appendChild(importBody);
+  el.appendChild(importCard);
+
   var card = document.createElement('div');
   card.className = 'card';
 
@@ -1133,6 +1171,259 @@ function initInput(camp){
   var t = new Date();
   el.value = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
   renderDILog(camp);
+  wireImportUI();
+}
+
+// ── BULK CSV IMPORT ──────────────────────
+function wireImportUI(){
+  var tog = document.getElementById('btn-toggle-import');
+  if(tog){
+    tog.addEventListener('click', function(){
+      var panel = document.getElementById('import-panel');
+      if(panel.style.display === 'none'){ panel.style.display = 'block'; tog.textContent = 'Hide'; }
+      else { panel.style.display = 'none'; tog.textContent = 'Show'; }
+    });
+  }
+  var fileInput = document.getElementById('csv-file');
+  if(fileInput){
+    fileInput.addEventListener('change', function(evt){
+      var file = evt.target.files[0];
+      if(!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var ta = document.getElementById('csv-paste');
+        if(ta) ta.value = e.target.result;
+      };
+      reader.readAsText(file);
+    });
+  }
+  var preview = document.getElementById('btn-preview-import');
+  if(preview) preview.addEventListener('click', previewImport);
+}
+
+function parseCSVLine(line){
+  var result = [], cur = '', inQ = false;
+  for(var i = 0; i < line.length; i++){
+    var ch = line[i];
+    if(inQ){
+      if(ch === '"' && line[i+1] === '"'){ cur += '"'; i++; }
+      else if(ch === '"'){ inQ = false; }
+      else { cur += ch; }
+    } else {
+      if(ch === ','){ result.push(cur); cur = ''; }
+      else if(ch === '"'){ inQ = true; }
+      else { cur += ch; }
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function findCol(headers, candidates){
+  for(var c = 0; c < candidates.length; c++){
+    var idx = headers.indexOf(candidates[c]);
+    if(idx >= 0) return idx;
+  }
+  // Fallback: partial startsWith match
+  for(var c2 = 0; c2 < candidates.length; c2++){
+    for(var h = 0; h < headers.length; h++){
+      if(headers[h].indexOf(candidates[c2]) === 0) return h;
+    }
+  }
+  return -1;
+}
+
+function parseNum(str){
+  if(str == null) return 0;
+  var s = String(str).replace(/[$,\s%"]/g, '');
+  if(s === '' || s === '--' || s === '-') return 0;
+  var n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+
+function normalizeDate(str){
+  if(!str) return null;
+  var s = str.trim().replace(/^"|"$/g, '');
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m) return m[3] + '-' + String(m[1]).padStart(2,'0') + '-' + String(m[2]).padStart(2,'0');
+  m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1] + '-' + m[2] + '-' + m[3];
+  return null;
+}
+
+function parseGoogleAdsCSV(text){
+  text = String(text || '').replace(/^﻿/, '');
+  var lines = text.split(/\r?\n/).filter(function(l){ return l.trim().length > 0; });
+  if(!lines.length) return { error: 'CSV is empty.' };
+
+  // Find the real header row — some Google Ads exports prefix with metadata
+  var headerIdx = -1;
+  for(var i = 0; i < lines.length; i++){
+    var lower = lines[i].toLowerCase();
+    var hasDate = /(^|,)"?(day|date)"?(,|$)/.test(lower);
+    var hasMetric = lower.indexOf('impr') >= 0 || lower.indexOf('clicks') >= 0 || lower.indexOf('cost') >= 0;
+    if(hasDate && hasMetric){ headerIdx = i; break; }
+  }
+  if(headerIdx === -1){
+    return { error: 'Could not find a header row. Expected columns like Day, Impressions, Clicks, Cost.' };
+  }
+
+  var headers = parseCSVLine(lines[headerIdx]).map(function(h){
+    return h.trim().toLowerCase().replace(/^"|"$/g, '');
+  });
+
+  var cols = {
+    date:   findCol(headers, ['day','date']),
+    impr:   findCol(headers, ['impr.','impressions','impr']),
+    clicks: findCol(headers, ['clicks']),
+    spend:  findCol(headers, ['cost','spend','cost ($)']),
+    conv:   findCol(headers, ['conversions','conv.','all conv.']),
+    ctr:    findCol(headers, ['ctr','click-through rate']),
+    cpc:    findCol(headers, ['avg. cpc','avg cpc','average cpc']),
+    is:     findCol(headers, ['search impr. share','search impression share','impr. share','impression share','search is'])
+  };
+
+  if(cols.date < 0){ return { error: 'CSV is missing a Day/Date column.' }; }
+
+  var rows = [], errors = [];
+  for(var j = headerIdx + 1; j < lines.length; j++){
+    var parts = parseCSVLine(lines[j]);
+    if(parts.length < 2) continue;
+    var raw = parts[cols.date] || '';
+    if(!raw || raw.toLowerCase().indexOf('total') >= 0) continue;
+    var dt = normalizeDate(raw);
+    if(!dt){ errors.push('Row ' + (j - headerIdx) + ': can\'t parse date "' + raw + '"'); continue; }
+    var impr   = cols.impr   >= 0 ? parseNum(parts[cols.impr])   : 0;
+    var clicks = cols.clicks >= 0 ? parseNum(parts[cols.clicks]) : 0;
+    var spend  = cols.spend  >= 0 ? parseNum(parts[cols.spend])  : 0;
+    var conv   = cols.conv   >= 0 ? parseNum(parts[cols.conv])   : 0;
+    var cpc    = cols.cpc    >= 0 && parts[cols.cpc] ? parseNum(parts[cols.cpc]) : null;
+    var is_    = cols.is     >= 0 && parts[cols.is]  ? parseNum(parts[cols.is])  : null;
+    var ctr    = cols.ctr    >= 0 && parts[cols.ctr] ? parseNum(parts[cols.ctr]) : null;
+    if(ctr == null && impr > 0 && clicks > 0) ctr = parseFloat((clicks / impr * 100).toFixed(2));
+
+    rows.push({
+      date: dt,
+      impr: impr,
+      clicks: clicks,
+      spend: spend,
+      leads: conv,          // treat Google conversions as leads
+      cpc:   cpc,
+      is:    is_,
+      qs:    null,
+      gconv: conv || null,
+      ctr:   ctr,
+      temp:  null
+    });
+  }
+  return { rows: rows, errors: errors, columns: cols };
+}
+
+function previewImport(){
+  var text = (document.getElementById('csv-paste') || {}).value || '';
+  var previewEl = document.getElementById('import-preview');
+  if(!text.trim()){
+    previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">Paste a CSV or upload a file first.</div>';
+    return;
+  }
+  var res = parseGoogleAdsCSV(text);
+  if(res.error){
+    previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">' + res.error + '</div>';
+    return;
+  }
+  if(!res.rows.length){
+    previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">No valid data rows found.</div>';
+    return;
+  }
+
+  var camp = getCamp(activeCampId);
+  if(!camp){
+    previewEl.innerHTML = '<div style="color:#ef4444;font-size:12px;">No active campaign selected.</div>';
+    return;
+  }
+  var existing = {};
+  (camp.perfLog || []).forEach(function(e){ existing[e.date] = true; });
+  var newCount = 0, updCount = 0;
+  res.rows.forEach(function(r){ if(existing[r.date]) updCount++; else newCount++; });
+  var sorted = res.rows.map(function(r){ return r.date; }).sort();
+  var range = sorted[0] + ' → ' + sorted[sorted.length - 1];
+
+  var html = '<div style="background:#fef9f0;border:1px solid var(--gold);border-radius:6px;padding:14px;">';
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">Ready to import ' + res.rows.length + ' rows into <strong>' + escapeHtml(camp.name) + '</strong></div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Date range: ' + range + '</div>';
+  html += '<div style="font-size:12px;margin-bottom:12px;">';
+  html += '<span style="color:#059669;font-weight:600;">✓ ' + newCount + ' new</span>';
+  if(updCount > 0) html += ' &nbsp; <span style="color:#d97706;font-weight:600;">↻ ' + updCount + ' will overwrite existing entries</span>';
+  html += '</div>';
+  if(res.errors.length){
+    html += '<div style="font-size:11px;color:#d97706;margin-bottom:10px;">' + res.errors.length + ' row(s) skipped: ' + escapeHtml(res.errors.slice(0,2).join('; ')) + (res.errors.length > 2 ? '…' : '') + '</div>';
+  }
+  html += '<button class="btn btn-gold" id="btn-confirm-import" type="button">Import ' + res.rows.length + ' rows</button>';
+  html += '</div>';
+
+  // Preview table
+  html += '<div style="margin-top:12px;max-height:220px;overflow-y:auto;font-size:11px;border:1px solid #e5e7eb;border-radius:4px;">';
+  html += '<table style="width:100%;border-collapse:collapse;">';
+  html += '<thead><tr style="background:#f3f4f6;position:sticky;top:0;">';
+  html += '<th style="text-align:left;padding:6px 8px;font-weight:600;">Date</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">Impr</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">Clicks</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">Spend</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">Conv</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">CPC</th>';
+  html += '<th style="text-align:right;padding:6px 8px;font-weight:600;">CTR%</th>';
+  html += '</tr></thead><tbody>';
+  res.rows.slice(0, 20).forEach(function(r){
+    var isUpd = existing[r.date];
+    html += '<tr style="border-top:1px solid #e5e7eb;' + (isUpd ? 'background:#fffbeb;' : '') + '">';
+    html += '<td style="padding:4px 8px;">' + r.date + (isUpd ? ' <span style="color:#d97706;font-size:9px;">↻</span>' : '') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + r.impr + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + r.clicks + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">$' + (r.spend || 0).toFixed(2) + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + r.leads + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.cpc != null ? '$' + r.cpc.toFixed(2) : '—') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.ctr != null ? r.ctr.toFixed(2) : '—') + '</td>';
+    html += '</tr>';
+  });
+  if(res.rows.length > 20){
+    html += '<tr><td colspan="7" style="text-align:center;padding:8px;color:var(--muted);font-style:italic;">…+' + (res.rows.length - 20) + ' more rows</td></tr>';
+  }
+  html += '</tbody></table></div>';
+
+  previewEl.innerHTML = html;
+  var confirmBtn = document.getElementById('btn-confirm-import');
+  if(confirmBtn) confirmBtn.addEventListener('click', function(){ confirmImport(res.rows); });
+}
+
+function confirmImport(rows){
+  var camp = getCamp(activeCampId);
+  if(!camp){ alert('No active campaign.'); return; }
+  if(!camp.perfLog) camp.perfLog = [];
+  var newDates = {};
+  rows.forEach(function(r){ newDates[r.date] = true; });
+  camp.perfLog = camp.perfLog.filter(function(e){ return !newDates[e.date]; });
+  rows.forEach(function(r){ camp.perfLog.push(r); });
+  camp.perfLog.sort(function(a, b){ return a.date.localeCompare(b.date); });
+  save('campaigns', campaigns);
+
+  var pasteEl = document.getElementById('csv-paste');
+  var fileEl  = document.getElementById('csv-file');
+  if(pasteEl) pasteEl.value = '';
+  if(fileEl)  fileEl.value  = '';
+  var previewEl = document.getElementById('import-preview');
+  if(previewEl){
+    previewEl.innerHTML = '<div style="background:#d1fae5;border:1px solid #059669;border-radius:6px;padding:12px;font-size:13px;color:#065f46;">'
+      + '<strong>✓ Imported ' + rows.length + ' rows.</strong> Existing entries on matching dates were overwritten.'
+      + '</div>';
+  }
+  renderDILog(camp);
+  renderPerfLog(camp);
+  if(typeof checkWarnings === 'function') checkWarnings(camp);
+}
+
+function escapeHtml(s){
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 
