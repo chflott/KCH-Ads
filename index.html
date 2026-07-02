@@ -1413,6 +1413,23 @@ function confirmCalendlyImport(rows){
   var byDate = {};
   camp.perfLog.forEach(function(e){ byDate[e.date] = e; });
 
+  var minDate = rows[0].date, maxDate = rows[0].date;
+  rows.forEach(function(r){
+    if(r.date < minDate) minDate = r.date;
+    if(r.date > maxDate) maxDate = r.date;
+  });
+
+  camp.perfLog = camp.perfLog.filter(function(e){
+    if(e.date < minDate || e.date > maxDate) return true;
+    var hasOtherData = (e.impr > 0) || (e.clicks > 0) || (e.spend > 0)
+      || (e.cpc != null) || (e.is != null) || (e.qs != null)
+      || (e.gconv != null) || (e.ctr != null) || (e.temp != null);
+    if(hasOtherData){ e.leads = 0; return true; }
+    return false;
+  });
+  byDate = {};
+  camp.perfLog.forEach(function(e){ byDate[e.date] = e; });
+
   rows.forEach(function(r){
     if(byDate[r.date]){
       byDate[r.date].leads = r.leads;
