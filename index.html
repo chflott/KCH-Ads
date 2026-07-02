@@ -1302,12 +1302,17 @@ function parseCalendlyCSV(text, dateMode){
     return h.trim().toLowerCase().replace(/^"|"$/g, '');
   });
 
-  var createdIdx   = findCol(headers, ['created date & time (utc)','created date & time','created at','created date','created']);
-  var startIdx     = findCol(headers, ['start date & time','start date','start time','start']);
+  var createdIdx   = findCol(headers, ['created date & time (utc)','created date & time','created at','created date','date scheduled','scheduled at','created']);
+  var startIdx     = findCol(headers, ['start date & time','start date','start time','event start','start']);
   var cancelledIdx = findCol(headers, ['cancelled','canceled','status']);
 
   var useIdx = dateMode === 'start' ? startIdx : createdIdx;
-  if(useIdx < 0) useIdx = createdIdx >= 0 ? createdIdx : startIdx;
+  if(dateMode === 'created' && createdIdx < 0){
+    return { error: 'This CSV has no "Created Date" column, only a Start Date. In Calendly, use the Invitees Report export (Home → Reports → Invitees) — it includes Created Date & Time. Or switch the dropdown to Start Date if that\'s what you meant.' };
+  }
+  if(dateMode === 'start' && startIdx < 0){
+    return { error: 'CSV has no Start Date column.' };
+  }
   if(useIdx < 0) return { error: 'CSV needs a Created Date or Start Date column.' };
 
   var counts = {}, skipped = 0, errors = [];
