@@ -1302,13 +1302,18 @@ function parseCalendlyCSV(text, dateMode){
     return h.trim().toLowerCase().replace(/^"|"$/g, '');
   });
 
-  var createdIdx   = findCol(headers, ['created date & time (utc)','created date & time','created at','created date','date scheduled','scheduled at','created']);
-  var startIdx     = findCol(headers, ['start date & time','start date','start time','event start','start']);
-  var cancelledIdx = findCol(headers, ['cancelled','canceled','status']);
+  function findByContains(hs, needle){
+    for(var i = 0; i < hs.length; i++){ if(hs[i].indexOf(needle) >= 0) return i; }
+    return -1;
+  }
+  var createdIdx   = findByContains(headers, 'created');
+  var startIdx     = findByContains(headers, 'start date');
+  if(startIdx < 0) startIdx = findByContains(headers, 'start');
+  var cancelledIdx = findCol(headers, ['canceled','cancelled','status']);
 
   var useIdx = dateMode === 'start' ? startIdx : createdIdx;
   if(dateMode === 'created' && createdIdx < 0){
-    return { error: 'This CSV has no "Created Date" column, only a Start Date. In Calendly, use the Invitees Report export (Home → Reports → Invitees) — it includes Created Date & Time. Or switch the dropdown to Start Date if that\'s what you meant.' };
+    return { error: 'This CSV has no column containing "Created" — can\'t tell when bookings were made. Switch the dropdown to Start Date, or export a different Calendly report that includes a Created Date column.' };
   }
   if(dateMode === 'start' && startIdx < 0){
     return { error: 'CSV has no Start Date column.' };
