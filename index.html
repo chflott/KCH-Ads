@@ -1081,8 +1081,8 @@ function buildInput(camp, container){
     +   '<strong style="color:var(--ink);">How to get the CSV from Google Ads:</strong><br>'
     +   '1. Open the campaign in Google Ads<br>'
     +   '2. Segment → Day, then set the date range (e.g. last 90 days)<br>'
-    +   '3. Add columns you have: Impressions, Clicks, Cost, Conversions, CTR, Avg CPC, Search Impr. share<br>'
-    +   '4. Download → CSV, then paste or upload below'
+    +   '3. Download → CSV with whichever 4 metrics you can export at once (e.g. Cost/Clicks/Impr/Conv)<br>'
+    +   '4. Import here, then re-export with the OTHER metrics (CPC/IS/CTR/QS) and import again — imports merge by date, so nothing gets overwritten.'
     + '</div>'
     + '<div class="mf" style="margin-bottom:12px;">'
     +   '<label>Upload CSV file</label>'
@@ -1549,30 +1549,28 @@ function parseGoogleAdsCSV(text){
     if(!raw || raw.toLowerCase().indexOf('total') >= 0) continue;
     var dt = normalizeDate(raw);
     if(!dt){ errors.push('Row ' + (j - headerIdx) + ': can\'t parse date "' + raw + '"'); continue; }
-    var impr   = cols.impr   >= 0 ? parseNum(parts[cols.impr])   : 0;
-    var clicks = cols.clicks >= 0 ? parseNum(parts[cols.clicks]) : 0;
-    var spend  = cols.spend  >= 0 ? parseNum(parts[cols.spend])  : 0;
-    var conv   = cols.conv   >= 0 ? parseNum(parts[cols.conv])   : 0;
-    var cpc    = cols.cpc    >= 0 && parts[cols.cpc] ? parseNum(parts[cols.cpc]) : null;
-    var is_    = cols.is     >= 0 && parts[cols.is]  ? parseNum(parts[cols.is])  : null;
-    var ctr    = cols.ctr    >= 0 && parts[cols.ctr] ? parseNum(parts[cols.ctr]) : null;
-    if(ctr == null && impr > 0 && clicks > 0) ctr = parseFloat((clicks / impr * 100).toFixed(2));
-
-    rows.push({
-      date: dt,
-      impr: impr,
-      clicks: clicks,
-      spend: spend,
-      leads: conv,          // treat Google conversions as leads
-      cpc:   cpc,
-      is:    is_,
-      qs:    null,
-      gconv: conv || null,
-      ctr:   ctr,
-      temp:  null
-    });
+    var row = { date: dt };
+    if(cols.impr   >= 0) row.impr   = parseNum(parts[cols.impr]);
+    if(cols.clicks >= 0) row.clicks = parseNum(parts[cols.clicks]);
+    if(cols.spend  >= 0) row.spend  = parseNum(parts[cols.spend]);
+    if(cols.conv   >= 0) row.gconv  = parseNum(parts[cols.conv]);
+    if(cols.cpc    >= 0 && parts[cols.cpc]) row.cpc = parseNum(parts[cols.cpc]);
+    if(cols.is     >= 0 && parts[cols.is])  row.is  = parseNum(parts[cols.is]);
+    if(cols.ctr    >= 0 && parts[cols.ctr]) row.ctr = parseNum(parts[cols.ctr]);
+    if(row.ctr == null && row.impr > 0 && row.clicks > 0){
+      row.ctr = parseFloat((row.clicks / row.impr * 100).toFixed(2));
+    }
+    rows.push(row);
   }
-  return { rows: rows, errors: errors, columns: cols };
+  var presentFields = [];
+  if(cols.impr   >= 0) presentFields.push('Impressions');
+  if(cols.clicks >= 0) presentFields.push('Clicks');
+  if(cols.spend  >= 0) presentFields.push('Spend');
+  if(cols.conv   >= 0) presentFields.push('G.Conv');
+  if(cols.cpc    >= 0) presentFields.push('CPC');
+  if(cols.is     >= 0) presentFields.push('IS%');
+  if(cols.ctr    >= 0) presentFields.push('CTR');
+  return { rows: rows, errors: errors, columns: cols, presentFields: presentFields };
 }
 
 function previewImport(){
@@ -1606,7 +1604,10 @@ function previewImport(){
 
   var html = '<div style="background:#fef9f0;border:1px solid var(--gold);border-radius:6px;padding:14px;">';
   html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">Ready to import ' + res.rows.length + ' rows into <strong>' + escapeHtml(camp.name) + '</strong></div>';
-  html += '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Date range: ' + range + '</div>';
+  html += '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Date range: ' + range + '</div>';
+  if(res.presentFields && res.presentFields.length){
+    html += '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Columns in this CSV: <strong>' + res.presentFields.join(', ') + '</strong>. Other metrics on existing days will be left alone.</div>';
+  }
   html += '<div style="font-size:12px;margin-bottom:12px;">';
   html += '<span style="color:#059669;font-weight:600;">✓ ' + newCount + ' new</span>';
   if(updCount > 0) html += ' &nbsp; <span style="color:#d97706;font-weight:600;">↻ ' + updCount + ' will overwrite existing entries</span>';
@@ -1655,10 +1656,21 @@ function confirmImport(rows){
   var camp = getCamp(activeCampId);
   if(!camp){ alert('No active campaign.'); return; }
   if(!camp.perfLog) camp.perfLog = [];
-  var newDates = {};
-  rows.forEach(function(r){ newDates[r.date] = true; });
-  camp.perfLog = camp.perfLog.filter(function(e){ return !newDates[e.date]; });
-  rows.forEach(function(r){ camp.perfLog.push(r); });
+  var byDate = {};
+  camp.perfLog.forEach(function(e){ byDate[e.date] = e; });
+
+  var blank = { impr:0, clicks:0, spend:0, leads:0, cpc:null, is:null, qs:null, gconv:null, ctr:null, temp:null };
+  rows.forEach(function(r){
+    var existing = byDate[r.date];
+    if(existing){
+      Object.keys(r).forEach(function(k){ if(k !== 'date') existing[k] = r[k]; });
+    } else {
+      var fresh = { date: r.date };
+      Object.keys(blank).forEach(function(k){ fresh[k] = blank[k]; });
+      Object.keys(r).forEach(function(k){ if(k !== 'date') fresh[k] = r[k]; });
+      camp.perfLog.push(fresh);
+    }
+  });
   camp.perfLog.sort(function(a, b){ return a.date.localeCompare(b.date); });
   save('campaigns', campaigns);
 
@@ -1669,7 +1681,7 @@ function confirmImport(rows){
   var previewEl = document.getElementById('import-preview');
   if(previewEl){
     previewEl.innerHTML = '<div style="background:#d1fae5;border:1px solid #059669;border-radius:6px;padding:12px;font-size:13px;color:#065f46;">'
-      + '<strong>✓ Imported ' + rows.length + ' rows.</strong> Existing entries on matching dates were overwritten.'
+      + '<strong>✓ Imported ' + rows.length + ' rows.</strong> Only the columns in this CSV were updated — other metrics on existing days were left alone. Import the next batch to fill in more.'
       + '</div>';
   }
   renderDILog(camp);
