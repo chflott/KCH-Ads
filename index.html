@@ -1710,6 +1710,122 @@ function escapeHtml(s){
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── GOOGLE ADS CHANGE-HISTORY IMPORT ─────────────────────────
+// Parses the text you copy from Google Ads → Tools → Change history into dated
+// Campaign Log entries (type "Change"). Each change event in that view starts
+// with the user's email line, so we split on that.
+var CHIST_MONTHS = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+var CHIST_SKIP = {
+  "changes can't be undone":1, "main adwords campaign for kch":1, "adgroup id1":1,
+  "dynamic":1, "all changes":1, "budget":1, "bidding":1, "audience":1, "location":1,
+  "language":1, "conversion":1, "asset":1, "status":1, "feed":1, "other":1
+};
+var _chistParsed = [];
+
+function chistTsToDate(line){
+  var m = line.match(/([A-Za-z]{3})[a-z]*\s+(\d{1,2}),\s*(\d{4})/);
+  if(!m) return null;
+  var mo = CHIST_MONTHS[m[1].toLowerCase().slice(0,3)];
+  return mo ? m[3] + '-' + mo + '-' + String(m[2]).padStart(2,'0') : null;
+}
+function chistIsTimestamp(line){ return /[A-Za-z]{3}[a-z]*\s+\d{1,2},\s*\d{4},\s*\d{1,2}:\d{2}/.test(line); }
+function chistCat(t){
+  var s = t.toLowerCase();
+  if(s.indexOf('target cpa')>=0 || s.indexOf('bid')>=0 || s.indexOf('maximize')>=0) return 'Bidding Strategy';
+  if(s.indexOf('budget')>=0) return 'Budget';
+  if(s.indexOf('negative')>=0) return 'Negative Keywords';
+  if(s.indexOf('responsive search ad')>=0 || s.indexOf('headline')>=0 || s.indexOf('final url')>=0) return 'Ad Copy';
+  if(s.indexOf('goal')>=0 || s.indexOf('conversion')>=0) return 'Conversion Tracking';
+  if(s.indexOf('income range')>=0 || s.indexOf('keyword')>=0 || s.indexOf('audience')>=0 || s.indexOf('location')>=0) return 'Targeting';
+  return 'Other';
+}
+function parseAdsChangeHistory(text){
+  var raw = String(text||'').split(/\r?\n/).map(function(l){return l.trim();}).filter(function(l){return l.length;});
+  var cut = raw.length;
+  for(var i=0;i<raw.length;i++){ if(/^show rows/i.test(raw[i])){ cut=i; break; } }
+  raw = raw.slice(0, cut);
+
+  var blocks = [], cur = null;
+  raw.forEach(function(l){
+    if(/\S+@\S+\.\S+/.test(l)){ if(cur) blocks.push(cur); cur = []; }
+    else if(cur) cur.push(l);
+  });
+  if(cur) blocks.push(cur);
+
+  var entries = [];
+  blocks.forEach(function(lines){
+    var date = null, source = 'Manual (web client)', desc = [], headlineCount = 0;
+    lines.forEach(function(l){
+      var low = l.toLowerCase();
+      if(chistIsTimestamp(l)){ if(!date) date = chistTsToDate(l); return; }
+      if(low === 'recommendations'){ source = 'Auto-applied recommendation'; return; }
+      if(low === 'web client (manual)'){ source = 'Manual (web client)'; return; }
+      if(CHIST_SKIP[low]) return;
+      if(l.charAt(0) === '"') return;                                     // keyword quotes
+      if(/^\d+$/.test(l) || /^\d+\s*-\s*\d+\s+of\s+\d+$/i.test(l)) return; // paging controls
+      if(/^headline was\b/i.test(l)){ headlineCount++; return; }          // collapse headline dumps
+      desc.push(l);
+    });
+    if(!date && !desc.length) return;
+    var t = desc.join(' — ');
+    if(headlineCount>0) t += (t?' — ':'') + headlineCount + ' prior headline' + (headlineCount>1?'s':'') + ' replaced';
+    entries.push({ date: date, type:'Change', text: t, cat: chistCat(t), why: source });
+  });
+  return entries;
+}
+
+function previewChangeHistory(){
+  var el = document.getElementById('chist-paste');
+  var out = document.getElementById('chist-preview');
+  if(!el || !out) return;
+  var entries = parseAdsChangeHistory(el.value);
+  if(!entries.length){
+    out.innerHTML = '<div style="color:#ef4444;font-size:12px;">No change entries found. Copy the rows from Google Ads → Tools → Change history and paste them here.</div>';
+    _chistParsed = [];
+    return;
+  }
+  var camp = getCamp(activeCampId);
+  var existing = {};
+  ((camp && camp.campaignLog) || []).forEach(function(e){ existing[(e.date||'')+'|'+(e.text||'')] = true; });
+  var fresh = entries.filter(function(e){ return !existing[(e.date||'')+'|'+(e.text||'')]; });
+  _chistParsed = fresh;
+  var dup = entries.length - fresh.length;
+
+  var html = '<div style="background:#fef9f0;border:1px solid var(--gold);border-radius:6px;padding:12px;">';
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:8px;">'
+    + fresh.length + ' new change' + (fresh.length!==1?'s':'') + ' ready'
+    + (dup>0 ? ' <span style="color:var(--muted);font-weight:400;">(' + dup + ' already logged, skipped)</span>' : '') + '</div>';
+  html += '<div style="max-height:240px;overflow-y:auto;font-size:11px;">';
+  fresh.forEach(function(e){
+    html += '<div style="padding:5px 0;border-top:1px solid #eee;line-height:1.5;">'
+      + '<strong>' + (e.date||'?') + '</strong> · <span style="color:var(--muted);">' + escapeHtml(e.cat) + '</span><br>'
+      + escapeHtml(e.text) + '</div>';
+  });
+  html += '</div>';
+  if(fresh.length) html += '<button class="btn btn-gold" onclick="importChangeHistory()" style="margin-top:10px;font-size:12px;padding:8px 14px;">Add ' + fresh.length + ' to log</button>';
+  html += '</div>';
+  out.innerHTML = html;
+}
+
+function importChangeHistory(){
+  var camp = getCamp(activeCampId);
+  if(!camp){ alert('No active campaign selected.'); return; }
+  if(!_chistParsed.length) return;
+  if(!camp.campaignLog) camp.campaignLog = [];
+  _chistParsed.forEach(function(e){
+    camp.campaignLog.push({ date:e.date, type:'Change', text:e.text, cat:e.cat, why:e.why, expected:'', outcome:'' });
+  });
+  camp.campaignLog.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+  save('campaigns', campaigns);
+  var n = _chistParsed.length;
+  _chistParsed = [];
+  var paste = document.getElementById('chist-paste'); if(paste) paste.value = '';
+  var out = document.getElementById('chist-preview');
+  if(out) out.innerHTML = '<div style="background:#d1fae5;border:1px solid #059669;border-radius:6px;padding:10px;font-size:12px;color:#065f46;">'
+    + '<strong>&#10003; Added ' + n + ' change' + (n!==1?'s':'') + ' to the log.</strong></div>';
+  renderCampaignLog(camp);
+}
+
 
 function loadDIEntry(e){
   // Pre-fill the form with this entry's data so user can edit and re-save
@@ -2940,6 +3056,14 @@ function buildChecklist(camp){
   logCard.style.marginTop = '12px';
   logCard.innerHTML = '<div class="card-head"><h3>Campaign Log</h3><p>Dated findings, decisions, observations, and changes. The AI reads this when generating your weekly to-do list and performance analysis.</p></div>'
     + '<div class="card-body">'
+    + '<details style="margin-bottom:12px;border:1px solid var(--border);border-radius:8px;padding:8px 12px;background:#faf9f7;">'
+    + '<summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--stone);">&#128229; Import from Google Ads change history</summary>'
+    + '<div style="margin-top:10px;">'
+    + '<p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;">In Google Ads open <strong>Tools &rarr; Change history</strong>, select the rows, copy, and paste below. Each change becomes a dated Change entry. Re-importing is safe &mdash; anything already logged is skipped.</p>'
+    + '<textarea id="chist-paste" placeholder="Paste your Google Ads change history here..." style="width:100%;min-height:90px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;line-height:1.5;resize:vertical;box-sizing:border-box;"></textarea>'
+    + '<button class="btn" onclick="previewChangeHistory()" style="margin-top:8px;font-size:12px;padding:7px 12px;">Preview</button>'
+    + '<div id="chist-preview" style="margin-top:10px;"></div>'
+    + '</div></details>'
     + '<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start;flex-wrap:wrap;">'
     + '<select id="log-entry-type" onchange="toggleChangeFields()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--stone);background:white;cursor:pointer;">'
     + '<option value="Finding">Finding</option>'
