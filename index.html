@@ -1492,6 +1492,15 @@ function parseNum(str){
   return isFinite(n) ? n : 0;
 }
 
+// True only when a CSV cell holds a real number. Blank, "--", and "-" mean
+// "this metric wasn't in this export" — not a genuine zero — so callers can
+// skip them and avoid overwriting data from a previous batch import.
+function cellHasValue(v){
+  if(v == null) return false;
+  var s = String(v).replace(/["\s]/g, '');
+  return s !== '' && s !== '--' && s !== '-';
+}
+
 function normalizeDate(str){
   if(!str) return null;
   var s = str.trim().replace(/^"|"$/g, '');
@@ -1550,26 +1559,34 @@ function parseGoogleAdsCSV(text){
     var dt = normalizeDate(raw);
     if(!dt){ errors.push('Row ' + (j - headerIdx) + ': can\'t parse date "' + raw + '"'); continue; }
     var row = { date: dt };
-    if(cols.impr   >= 0) row.impr   = parseNum(parts[cols.impr]);
-    if(cols.clicks >= 0) row.clicks = parseNum(parts[cols.clicks]);
-    if(cols.spend  >= 0) row.spend  = parseNum(parts[cols.spend]);
-    if(cols.conv   >= 0) row.gconv  = parseNum(parts[cols.conv]);
-    if(cols.cpc    >= 0 && parts[cols.cpc]) row.cpc = parseNum(parts[cols.cpc]);
-    if(cols.is     >= 0 && parts[cols.is])  row.is  = parseNum(parts[cols.is]);
-    if(cols.ctr    >= 0 && parts[cols.ctr]) row.ctr = parseNum(parts[cols.ctr]);
+    // Only write a field when the cell actually carries a value. Google Ads only
+    // exports ~4 metrics at a time, so the columns you didn't pick can still be
+    // present in the file but blank ("" or "--"). Writing those as 0 would wipe
+    // data an earlier batch import already supplied for the same day.
+    if(cols.impr   >= 0 && cellHasValue(parts[cols.impr]))   row.impr   = parseNum(parts[cols.impr]);
+    if(cols.clicks >= 0 && cellHasValue(parts[cols.clicks])) row.clicks = parseNum(parts[cols.clicks]);
+    if(cols.spend  >= 0 && cellHasValue(parts[cols.spend]))  row.spend  = parseNum(parts[cols.spend]);
+    if(cols.conv   >= 0 && cellHasValue(parts[cols.conv]))   row.gconv  = parseNum(parts[cols.conv]);
+    if(cols.cpc    >= 0 && cellHasValue(parts[cols.cpc]))    row.cpc    = parseNum(parts[cols.cpc]);
+    if(cols.is     >= 0 && cellHasValue(parts[cols.is]))     row.is     = parseNum(parts[cols.is]);
+    if(cols.ctr    >= 0 && cellHasValue(parts[cols.ctr]))    row.ctr    = parseNum(parts[cols.ctr]);
     if(row.ctr == null && row.impr > 0 && row.clicks > 0){
       row.ctr = parseFloat((row.clicks / row.impr * 100).toFixed(2));
     }
     rows.push(row);
   }
+  // Report the fields that at least one row actually carried a value for, not
+  // just the headers that existed — so the preview tells the truth about what
+  // this import will change.
+  function anyHas(key){ return rows.some(function(r){ return r[key] != null; }); }
   var presentFields = [];
-  if(cols.impr   >= 0) presentFields.push('Impressions');
-  if(cols.clicks >= 0) presentFields.push('Clicks');
-  if(cols.spend  >= 0) presentFields.push('Spend');
-  if(cols.conv   >= 0) presentFields.push('G.Conv');
-  if(cols.cpc    >= 0) presentFields.push('CPC');
-  if(cols.is     >= 0) presentFields.push('IS%');
-  if(cols.ctr    >= 0) presentFields.push('CTR');
+  if(anyHas('impr'))   presentFields.push('Impressions');
+  if(anyHas('clicks')) presentFields.push('Clicks');
+  if(anyHas('spend'))  presentFields.push('Spend');
+  if(anyHas('gconv'))  presentFields.push('G.Conv');
+  if(anyHas('cpc'))    presentFields.push('CPC');
+  if(anyHas('is'))     presentFields.push('IS%');
+  if(anyHas('ctr'))    presentFields.push('CTR');
   return { rows: rows, errors: errors, columns: cols, presentFields: presentFields };
 }
 
@@ -1610,7 +1627,7 @@ function previewImport(){
   }
   html += '<div style="font-size:12px;margin-bottom:12px;">';
   html += '<span style="color:#059669;font-weight:600;">✓ ' + newCount + ' new</span>';
-  if(updCount > 0) html += ' &nbsp; <span style="color:#d97706;font-weight:600;">↻ ' + updCount + ' will overwrite existing entries</span>';
+  if(updCount > 0) html += ' &nbsp; <span style="color:#d97706;font-weight:600;">↻ ' + updCount + ' existing day(s) updated (only the columns above)</span>';
   html += '</div>';
   if(res.errors.length){
     html += '<div style="font-size:11px;color:#d97706;margin-bottom:10px;">' + res.errors.length + ' row(s) skipped: ' + escapeHtml(res.errors.slice(0,2).join('; ')) + (res.errors.length > 2 ? '…' : '') + '</div>';
@@ -1634,12 +1651,12 @@ function previewImport(){
     var isUpd = existing[r.date];
     html += '<tr style="border-top:1px solid #e5e7eb;' + (isUpd ? 'background:#fffbeb;' : '') + '">';
     html += '<td style="padding:4px 8px;">' + r.date + (isUpd ? ' <span style="color:#d97706;font-size:9px;">↻</span>' : '') + '</td>';
-    html += '<td style="text-align:right;padding:4px 8px;">' + r.impr + '</td>';
-    html += '<td style="text-align:right;padding:4px 8px;">' + r.clicks + '</td>';
-    html += '<td style="text-align:right;padding:4px 8px;">$' + (r.spend || 0).toFixed(2) + '</td>';
-    html += '<td style="text-align:right;padding:4px 8px;">' + r.leads + '</td>';
-    html += '<td style="text-align:right;padding:4px 8px;">' + (r.cpc != null ? '$' + r.cpc.toFixed(2) : '—') + '</td>';
-    html += '<td style="text-align:right;padding:4px 8px;">' + (r.ctr != null ? r.ctr.toFixed(2) : '—') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.impr   != null ? r.impr   : '—') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.clicks != null ? r.clicks : '—') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.spend  != null ? '$' + r.spend.toFixed(2) : '—') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.gconv  != null ? r.gconv  : '—') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.cpc    != null ? '$' + r.cpc.toFixed(2) : '—') + '</td>';
+    html += '<td style="text-align:right;padding:4px 8px;">' + (r.ctr    != null ? r.ctr.toFixed(2) : '—') + '</td>';
     html += '</tr>';
   });
   if(res.rows.length > 20){
